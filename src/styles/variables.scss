@@ -1,0 +1,34 @@
+// 主题变量（仅放纯变量，由 vite additionalData 自动注入到每个 scss 文件）
+$primary: #3d8bfd;
+$primary-light: #6ba8ff;
+$primary-dark: #2c6fe0;
+
+// 登录页背景
+$login-bg: #eef4fd;
+
+// 主框架配色
+$header-bg: #ffffff;
+$tabbar-bg: #ffffff;
+$page-bg: #f0f4fb;
+$sidebar-bg: #ffffff;
+$text-main: #303133;
+$text-regular: #606266;
+$text-secondary: #909399;
+$border-color: #e6ebf5;
+
+// 状态色
+$success: #22c55e;
+$warning: #f5a623;
+$danger: #ef4444;
+$info: #14b8a6;
+
+// 尺寸
+$header-height: 48px;
+$tabbar-height: 40px;
+
+$radius-sm: 4px;
+$radius-base: 6px;
+$radius-lg: 10px;
+
+$shadow-card: 0 2px 12px rgba(61, 139, 253, 0.08);
+$shadow-float: 0 8px 30px rgba(61, 139, 253, 0.16);

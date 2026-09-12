@@ -1,0 +1,97 @@
+/* 全局基础样式 + 布局辅助类（不包含任何 @use，避免与 additionalData 冲突） */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: $text-main;
+  background: $page-bg;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cfd8e8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b4c2db;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 通用页面结构 ---------- */
+.page {
+  padding: 12px;
+  min-height: 100%;
+}
+
+.page-card {
+  background: #fff;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+  padding: 16px;
+}
+
+/* 卡片标题（带左侧竖条）：注意别和页面内其它 title 类名撞车 */
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-main;
+
+  &::before {
+    content: '';
+    flex: none;
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: $primary;
+  }
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-main;
+}
+
+/* ---------- 表格区域微调 ---------- */
+.el-table th.el-table__cell {
+  background: #f7faff !important;
+  color: $text-regular;
+  font-weight: 600;
+}
+
+.el-pagination {
+  --el-pagination-font-size: 12px;
+}
+
+/* 让 Element Plus 弹窗/消息更贴合整体观感 */
+.el-message-box,
+.el-dialog {
+  border-radius: $radius-lg;
+}
