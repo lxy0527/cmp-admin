@@ -9,7 +9,7 @@
 
 ```bash
 npm install
-npm run dev        # http://127.0.0.1:5173
+npm run dev        # http://localhost:5173（启动后自动打开浏览器）
 ```
 
 演示账号：`admin` / `123456`（另有 `viewer` / `123456`）
