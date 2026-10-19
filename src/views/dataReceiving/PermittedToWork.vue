@@ -3,22 +3,38 @@
     <!-- ---------------- 查询条件 ---------------- -->
     <div class="filter-bar">
       <div class="filter-item">
-        <span class="filter-label">许可作业区域</span>
-        <el-select v-model="query.permitArea" placeholder="请选择" clearable class="filter-control">
+        <span class="filter-label">{{ t('permitWork.filters.permitArea') }}</span>
+        <el-select
+          v-model="query.permitArea"
+          :placeholder="t('common.pleaseSelect')"
+          clearable
+          class="filter-control"
+        >
           <el-option v-for="a in options.permitArea" :key="a" :label="a" :value="a" />
         </el-select>
       </div>
 
       <div class="filter-item">
-        <span class="filter-label">许可类型</span>
-        <el-select v-model="query.permitType" placeholder="请选择" clearable class="filter-control">
-          <el-option v-for="t in options.permitType" :key="t" :label="t" :value="t" />
+        <span class="filter-label">{{ t('permitWork.filters.permitType') }}</span>
+        <el-select
+          v-model="query.permitType"
+          :placeholder="t('common.pleaseSelect')"
+          clearable
+          class="filter-control"
+        >
+          <!-- 注意：循环变量不能叫 t，会和 i18n 的 t() 冲突 -->
+          <el-option v-for="pt in options.permitType" :key="pt" :label="pt" :value="pt" />
         </el-select>
       </div>
 
       <div class="filter-item">
-        <span class="filter-label">许可批准申请</span>
-        <el-select v-model="query.company" placeholder="请选择" clearable class="filter-control">
+        <span class="filter-label">{{ t('permitWork.filters.company') }}</span>
+        <el-select
+          v-model="query.company"
+          :placeholder="t('common.pleaseSelect')"
+          clearable
+          class="filter-control"
+        >
           <el-option v-for="c in options.company" :key="c" :label="c" :value="c" />
         </el-select>
       </div>
@@ -28,49 +44,75 @@
           v-model="query.dateRange"
           type="daterange"
           value-format="YYYY-MM-DD"
-          range-separator="日期"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
+          :range-separator="t('permitWork.filters.dateRange')"
+          :start-placeholder="t('common.pleaseSelect')"
+          :end-placeholder="t('common.pleaseSelect')"
           unlink-panels
           class="filter-control filter-control--date"
         />
       </div>
 
       <div class="filter-actions">
-        <el-button type="primary" :icon="Search" @click="handleQuery">查询</el-button>
-        <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-        <el-button type="warning" :icon="Download" @click="handleExport">导出</el-button>
+        <el-button type="primary" :icon="Search" @click="handleQuery">{{ t('common.query') }}</el-button>
+        <el-button :icon="Refresh" @click="handleReset">{{ t('common.reset') }}</el-button>
+        <el-button type="warning" :icon="Download" @click="handleExport">{{ t('common.export') }}</el-button>
       </div>
     </div>
 
     <!-- ---------------- 表格 ---------------- -->
     <div class="page-card table-card">
       <div class="table-head">
-        <span class="card-title">许可作业列表</span>
+        <span class="card-title">{{ t('permitWork.title') }}</span>
+        <span class="head-hint">{{ t('permitWork.mockNote') }}</span>
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe height="100%" class="permit-table">
-        <el-table-column type="index" label="序号" width="120" align="center" />
-        <el-table-column prop="permitId" label="许可ID" min-width="140" align="center" />
-        <el-table-column prop="workPermitNo" label="工作票编号" min-width="150" align="center" />
-        <el-table-column prop="permitType" label="许可类型" min-width="130" align="center" />
-        <el-table-column label="许可状态" min-width="110" align="center">
+        <el-table-column type="index" label="#" width="90" align="center" />
+        <el-table-column prop="permitId" :label="t('permitWork.columns.permitId')" min-width="140" align="center" />
+        <el-table-column
+          prop="workPermitNo"
+          :label="t('permitWork.columns.workPermitNo')"
+          min-width="150"
+          align="center"
+        />
+        <el-table-column
+          prop="permitType"
+          :label="t('permitWork.columns.permitType')"
+          min-width="130"
+          align="center"
+        />
+        <el-table-column :label="t('permitWork.columns.status')" min-width="110" align="center">
           <template #default="{ row }">
             <span class="status-tag" :class="statusClass(row.status)">{{ row.status }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="modelContent" label="模型内容" min-width="130" align="center" />
-        <el-table-column prop="applicant" label="许可申请人" min-width="140" align="center" />
-        <el-table-column prop="applyDate" label="申请日期" min-width="170" align="center" />
-        <el-table-column label="操作" width="110" align="center" fixed="right">
+        <el-table-column
+          prop="modelContent"
+          :label="t('permitWork.columns.modelContent')"
+          min-width="130"
+          align="center"
+        />
+        <el-table-column
+          prop="applicant"
+          :label="t('permitWork.columns.applicant')"
+          min-width="140"
+          align="center"
+        />
+        <el-table-column
+          prop="applyDate"
+          :label="t('permitWork.columns.applyDate')"
+          min-width="170"
+          align="center"
+        />
+        <el-table-column :label="t('common.operation')" width="110" align="center" fixed="right">
           <template #default>
-            <el-button link type="primary" size="small">详情</el-button>
+            <el-button link type="primary" size="small">{{ t('common.detail') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="table-foot">
-        <span class="total-text">共 {{ total }} 条记录</span>
+        <span class="total-text">{{ t('common.total', { total }) }}</span>
         <el-pagination
           v-model:current-page="query.pageNum"
           v-model:page-size="query.pageSize"
@@ -89,11 +131,14 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { Download, Refresh, Search } from '@element-plus/icons-vue'
 import { exportPermitWorkApi, getPermitWorkOptions, getPermitWorkPageApi } from '@/api/permitWork'
 import type { PermitWorkQuery, PermitWorkRow } from '@/mock'
 
 defineOptions({ name: 'PermittedToWork' })
+
+const { t } = useI18n()
 
 const options = getPermitWorkOptions()
 
@@ -133,7 +178,7 @@ async function fetchData() {
     rows.value = res.list
     total.value = res.total
   } catch (e) {
-    ElMessage.error((e as Error).message || '查询失败')
+    ElMessage.error((e as Error).message || t('common.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -161,7 +206,7 @@ function handleSizeChange() {
 
 async function handleExport() {
   await exportPermitWorkApi({ ...query })
-  ElMessage.success('导出任务已提交（演示占位，等接口就绪后接真实导出）')
+  ElMessage.success(t('permitWork.exportPlaceholder'))
 }
 
 onMounted(fetchData)
@@ -228,9 +273,14 @@ onMounted(fetchData)
 .table-head {
   flex: none;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   margin-bottom: 10px;
+}
+
+.head-hint {
+  font-size: 12px;
+  color: $text-secondary;
 }
 
 .permit-table {

@@ -9,7 +9,7 @@
         @click="toggle(node)"
       >
         <MenuIcon :icon="node.icon" :active="containsActive(node)" />
-        <span class="menu-text ellipsis">{{ node.title }}</span>
+        <span class="menu-text ellipsis">{{ nodeLabel(node) }}</span>
         <span v-if="node.badge" class="menu-badge">{{ node.badge }}</span>
         <el-icon class="menu-arrow"><ArrowRight /></el-icon>
       </div>
@@ -22,7 +22,7 @@
         @click="go(node)"
       >
         <MenuIcon :icon="node.icon" :active="isActive(node)" />
-        <span class="menu-text ellipsis">{{ node.title }}</span>
+        <span class="menu-text ellipsis">{{ nodeLabel(node) }}</span>
         <span v-if="node.badge" class="menu-badge">{{ node.badge }}</span>
         <el-icon v-if="node.externalLink" class="menu-link"><TopRight /></el-icon>
       </div>
@@ -52,10 +52,21 @@
  *   icon / badge / disabled / externalLink / children（任意层级）/ hidden（在 store 过滤掉）
  */
 import { ArrowRight, TopRight } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type { MenuNode } from '@/config/menuTypes'
 import MenuIcon from './MenuIcon.vue'
 
 defineOptions({ name: 'MenuTree' })
+
+const { t } = useI18n()
+
+/**
+ * 菜单显示名：有 titleKey 就走 i18n，否则用 title 兜底。
+ * 这样静态配置、后端下发、以及"没翻译的临时菜单"三种情况都能正常显示。
+ */
+function nodeLabel(node: MenuNode): string {
+  return node.titleKey ? t(node.titleKey) : node.title
+}
 
 const props = withDefaults(
   defineProps<{

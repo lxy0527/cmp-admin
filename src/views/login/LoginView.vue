@@ -45,14 +45,14 @@
       <div class="card-logo">
         <AppLogo size="large" />
       </div>
-      <div class="login-title">系统登录</div>
+      <div class="login-title">{{ t('login.title') }}</div>
 
       <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent>
         <el-form-item prop="username">
           <el-input
             v-model="form.username"
             size="large"
-            placeholder="用户名"
+            :placeholder="t('login.username')"
             :prefix-icon="User"
             @keyup.enter="handleLogin"
           />
@@ -62,7 +62,7 @@
             v-model="form.password"
             type="password"
             size="large"
-            placeholder="密码"
+            :placeholder="t('login.password')"
             show-password
             :prefix-icon="Lock"
             @keyup.enter="handleLogin"
@@ -71,18 +71,30 @@
       </el-form>
 
       <el-button class="login-btn" type="primary" size="large" :loading="loading" @click="handleLogin">
-        登录
+        {{ t('login.submit') }}
       </el-button>
 
-      <p class="card-tip">演示账号：admin / 123456</p>
+      <!-- 注册 / 找回密码入口 -->
+      <div class="auth-links">
+        <el-button link type="primary" size="small" @click="router.push('/register')">
+          {{ t('authPage.goRegister') }}
+        </el-button>
+        <span class="link-divider">|</span>
+        <el-button link type="primary" size="small" @click="router.push('/forgot-password')">
+          {{ t('authPage.forgotPassword') }}
+        </el-button>
+      </div>
+
+      <p class="card-tip">{{ t('login.demoHint') }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { Lock, User } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
 import { useUserStore } from '@/store/user'
@@ -90,6 +102,7 @@ import { useUserStore } from '@/store/user'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -99,10 +112,10 @@ const form = reactive({
   password: '123456'
 })
 
-const rules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
+const rules = computed<FormRules>(() => ({
+  username: [{ required: true, message: t('login.usernameRequired'), trigger: 'blur' }],
+  password: [{ required: true, message: t('login.passwordRequired'), trigger: 'blur' }]
+}))
 
 async function handleLogin() {
   if (!formRef.value) return
@@ -111,11 +124,11 @@ async function handleLogin() {
   loading.value = true
   try {
     await userStore.login({ ...form })
-    ElMessage.success('登录成功')
+    ElMessage.success(t('common.success'))
     const redirect = (route.query.redirect as string) || '/dashboard'
     router.replace(redirect)
   } catch (e) {
-    ElMessage.error((e as Error).message || '登录失败')
+    ElMessage.error((e as Error).message || t('login.failed'))
   } finally {
     loading.value = false
   }
@@ -408,5 +421,19 @@ const nearBuildings: Building[] = Array.from({ length: 14 }, () => ({
 
 :deep(.el-form-item) {
   margin-bottom: 16px;
+}
+
+/* 注册 / 找回密码入口 */
+.auth-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.link-divider {
+  font-size: 11px;
+  color: #d8dde6;
 }
 </style>

@@ -11,6 +11,18 @@ export interface UserInfo {
   nickname: string
   roles: string[]
   /**
+   * 后端 `Role`：**0 普通账号 / 1 后端管理员**
+   * ⚠️ 这个字段决定调哪套接口（管理员用 /alarm、/album、/customer；
+   *    普通账号只能用 /alarmByUser、/albumByUser、/customerByUser）。
+   *    见 utils/session.ts 与各 api 模块里的分支。
+   */
+  role: number
+  /**
+   * 后端 `Permission`：0 普通账号 / 1 客户管理
+   * 文档里是独立于 Role 的一个开关，先存下来，暂不参与路由。
+   */
+  permission?: number
+  /**
    * 权限点列表
    * 后端就绪后请直接返回这个字段（前端 config/permission.ts 里的角色映射表就会被优先忽略），
    * 现在留空则由前端角色映射表兜底。
@@ -20,19 +32,34 @@ export interface UserInfo {
 
 /**
  * 演示账号
- * - admin / 123456 ：超级管理员（全权限）
- * - viewer / 123456：只读观察者（只有 role:query，用来验证按权限隐藏菜单/按钮）
+ * - admin  / 123456 ：**后端管理员**（Role=1），能看全部数据
+ * - viewer / 123456 ：**普通账号**（Role=0），只能看自己关联公司的数据
+ *   用来验证"角色分流"：登录 viewer 后会走 /alarmByUser、/albumByUser、/customerByUser
  *
  * 结构刻意跟后端将来要返回的结构保持一致，方便直接替换。
  */
 const USERS: Record<string, { password: string; info: UserInfo }> = {
   admin: {
     password: '123456',
-    info: { userId: 1, username: 'admin', nickname: 'kccm_data', roles: ['超级管理员'] }
+    info: {
+      userId: 1,
+      username: 'admin',
+      nickname: 'kccm_data',
+      roles: ['超级管理员'],
+      role: 1,
+      permission: 1
+    }
   },
   viewer: {
     password: '123456',
-    info: { userId: 2, username: 'viewer', nickname: 'ABLE_Viewer', roles: ['观察者_Viewer'] }
+    info: {
+      userId: 2,
+      username: 'viewer',
+      nickname: 'ABLE_Viewer',
+      roles: ['观察者_Viewer'],
+      role: 0,
+      permission: 0
+    }
   }
 }
 

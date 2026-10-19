@@ -1,10 +1,10 @@
 import { createApp } from 'vue'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 import App from './App.vue'
 import router from './router'
 import pinia from './store'
 import permission from './directives/permission'
+import i18n, { initLocale } from './locales'
 
 // 说明：Element Plus 的 JS 由 unplugin-vue-components 按需引入（首屏体积小），
 // 但 ElMessage / ElMessageBox 这类“命令式调用”的组件样式不会被自动引入，
@@ -18,6 +18,10 @@ const app = createApp(App)
 
 app.use(pinia)
 app.use(router)
+app.use(i18n)
+
+// 把已保存的语言同步到 <html lang>（影响字形与无障碍）
+initLocale()
 
 // 按钮级权限指令：v-permission="P.roleAdd"
 app.directive('permission', permission)

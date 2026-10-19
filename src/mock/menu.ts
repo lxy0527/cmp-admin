@@ -14,14 +14,17 @@
  * ⚠️ 这些菜单名是**演示用的编造数据**，不是真实需求。
  */
 import type { RemoteMenuNode } from '@/config/menuTree'
+import { storage } from '@/utils/storage'
 import { delay } from './helper'
 
-/** 从 localStorage 读当前用户角色（mock 里没有 store 上下文，只能这样拿） */
+/**
+ * 读当前用户角色（mock 里没有 store 上下文，只能直接读存储）
+ * ⚠️ 走 storage 工具而不是裸 localStorage —— 存储位置从 localStorage 换成
+ *    sessionStorage 时这里会自动跟着走，不会变成"读不到 → 菜单空掉"。
+ */
 function currentRoles(): string[] {
   try {
-    const raw = localStorage.getItem('cmp-admin:userInfo')
-    if (!raw) return []
-    return (JSON.parse(raw) as { roles?: string[] })?.roles || []
+    return storage.get<{ roles?: string[] }>('userInfo')?.roles || []
   } catch {
     return []
   }

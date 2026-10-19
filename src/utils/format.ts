@@ -76,3 +76,53 @@ export function formatLunar(date: Date = new Date()): string {
   const monthIndex = (date.getMonth() + 5) % 12
   return `${months[monthIndex]}月${days[dayIndex]}`
 }
+
+/* ============================================================
+ * 后端时间解析
+ * ============================================================
+ * CMP 后端返回的时间字段有几种写法（实测都出现过）：
+ *   1. .NET 格式   "/Date(1784002390497)/"      ← 列表接口大量使用
+ *   2. 普通字符串  "2026-10-15 09:15:00"
+ *   3. ISO 8601    "2026-10-15T09:15:00"
+ * 统一在这里吃掉，业务层只拿 Date 或格式化好的字符串。
+ *
+ * ⚠️ Safari/iOS 不认 "2026-10-15 09:15:00"（空格分隔），
+ *    所以字符串分支会先把空格换成 T 再解析。
+ */
+
+/** 把后端的各种时间写法解析成 Date；解析不了返回 null（不抛异常，避免一条脏数据打断整个列表） */
+export function parseServerDate(value?: string | number | null): Date | null {
+  if (value === null || value === undefined || value === '') return null
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? new Date(value) : null
+  }
+
+  const str = String(value).trim()
+
+  // "/Date(1784002390497)/" —— 括号里可能带时区，如 /Date(1784002390497+0800)/
+  const dotNet = str.match(/^\/Date\((-?\d+)([+-]\d{4})?\)\/$/)
+  if (dotNet) {
+    const ms = Number(dotNet[1])
+    if (!Number.isFinite(ms)) return null
+    const d = new Date(ms)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  // 纯数字字符串当作毫秒时间戳
+  if (/^-?\d{10,}$/.test(str)) {
+    const d = new Date(Number(str))
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  // "2026-10-15 09:15:00" → 换成 T，兼容 iOS
+  const normalized = str.includes(' ') && !str.includes('T') ? str.replace(' ', 'T') : str
+  const d = new Date(normalized)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/** 格式化成 "2026-10-15 09:15:00"；解析不了就给 fallback（默认 "--"） */
+export function formatServerDateTime(value?: string | number | null, fallback = '--'): string {
+  const d = parseServerDate(value)
+  return d ? formatDateTime(d) : fallback
+}

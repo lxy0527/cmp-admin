@@ -1,0 +1,26 @@
+# Cloudflare Pages 响应头配置
+# ============================================================
+# 为什么需要这个文件：
+#   之前部署后出现过"发版了但用户还是看到旧版本"——因为入口 index.html 被浏览器
+#   缓存住了，它引用的还是旧 hash 的 JS，导致新代码根本没加载。
+#
+# 策略：
+#   1. index.html **绝不缓存** —— 保证每次都能拿到最新的资源引用
+#   2. /assets/* 可以长期缓存 —— 文件名带内容 hash，内容一变文件名就变，不会串版本
+#   3. 其余静态文件给一个短缓存
+#
+# ⚠️ 这个文件必须放在 public/ 目录下，vite build 会原样拷到 dist/，
+#    Cloudflare Pages 部署时自动识别（它只认 dist 根目录下的 _headers）。
+
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

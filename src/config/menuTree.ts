@@ -26,6 +26,7 @@ function itemToNode(module: ModuleConfig, item: MenuItem, parentPath: string): M
     // key 用完整路径，保证全局唯一，且能直接当展开状态/选中判断的键
     key: routePath,
     title: item.title,
+    titleKey: item.titleKey,
     // 分组节点自身不跳转（有 children 就不给 routePath）
     routePath: children?.length ? undefined : routePath,
     sourcePath: item.path,
@@ -49,6 +50,7 @@ export function buildStaticMenus(modules: ModuleConfig[] = MODULES): MenuNode[] 
       return {
         key: module.path,
         title: module.title,
+        titleKey: module.titleKey,
         // 模块节点 = 顶部 Tab，点 Tab 会跳到第一个可见子项，所以 routePath 留空
         sourcePath: module.path,
         icon: module.icon,

@@ -4,27 +4,31 @@
     <div class="filter-bar">
       <el-input
         v-model="query.roleName"
-        placeholder="请输入角色名称"
+        :placeholder="t('role.inputName')"
         clearable
         class="filter-input"
         @keyup.enter="handleQuery"
       />
-      <el-button type="primary" :icon="Search" @click="handleQuery">查询</el-button>
-      <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+      <el-button type="primary" :icon="Search" @click="handleQuery">{{ t('common.query') }}</el-button>
+      <el-button :icon="Refresh" @click="handleReset">{{ t('common.reset') }}</el-button>
       <!-- 按钮级权限：v-permission 无权限时直接把按钮从 DOM 摘掉（观察者_Viewer 登录就看不到这个按钮） -->
       <el-button v-permission="P.roleAdd" type="primary" plain :icon="Plus" @click="openDialog()">
-        新增
+        {{ t('common.add') }}
       </el-button>
     </div>
 
     <!-- ---------------- 表格 ---------------- -->
     <div class="page-card table-card">
+      <div class="table-head">
+        <span class="card-title">{{ t('menu.cmpSettingItems.role') }}</span>
+        <span class="head-hint">{{ t('role.mockNote') }}</span>
+      </div>
       <el-table v-loading="loading" :data="rows" stripe height="100%">
         <el-table-column prop="id" label="ID" width="120" align="center" />
-        <el-table-column prop="roleName" label="角色名称" min-width="200" align="center" />
-        <el-table-column prop="roleDesc" label="角色描述" min-width="320" align="center" />
-        <el-table-column prop="createTime" label="创建时间" min-width="200" align="center" />
-        <el-table-column label="操作" width="160" align="center" fixed="right">
+        <el-table-column prop="roleName" :label="t('role.name')" min-width="200" align="center" />
+        <el-table-column prop="roleDesc" :label="t('role.description')" min-width="320" align="center" />
+        <el-table-column prop="createTime" :label="t('role.createTime')" min-width="200" align="center" />
+        <el-table-column :label="t('common.operation')" width="160" align="center" fixed="right">
           <template #default="{ row }">
             <el-button
               v-permission="P.roleEdit"
@@ -33,7 +37,7 @@
               size="small"
               @click="openDialog(row as RoleRow)"
             >
-              编辑
+              {{ t('common.edit') }}
             </el-button>
             <el-button
               v-permission="P.roleDelete"
@@ -42,14 +46,14 @@
               size="small"
               @click="handleDelete(row as RoleRow)"
             >
-              删除
+              {{ t('common.delete') }}
             </el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="table-foot">
-        <span class="total-text">共 {{ total }} 条记录</span>
+        <span class="total-text">{{ t('common.total', { total }) }}</span>
         <el-pagination
           v-model:current-page="query.pageNum"
           v-model:page-size="query.pageSize"
@@ -63,32 +67,39 @@
     </div>
 
     <!-- ---------------- 新增 / 编辑 ---------------- -->
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑角色' : '新增角色'" width="440px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="form.id ? t('role.editTitle') : t('role.addTitle')"
+      width="440px"
+    >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="角色名称" prop="roleName">
-          <el-input v-model="form.roleName" placeholder="请输入角色名称" />
+        <el-form-item :label="t('role.name')" prop="roleName">
+          <el-input v-model="form.roleName" :placeholder="t('role.inputName')" />
         </el-form-item>
-        <el-form-item label="角色描述" prop="roleDesc">
-          <el-input v-model="form.roleDesc" placeholder="请输入角色描述" />
+        <el-form-item :label="t('role.description')" prop="roleDesc">
+          <el-input v-model="form.roleDesc" :placeholder="t('role.inputDescription')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="handleSubmit">确定</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSubmit">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { deleteRoleApi, getRolePageApi, saveRoleApi } from '@/api/role'
 import { P } from '@/config/permission'
 import type { RoleQuery, RoleRow } from '@/mock'
 
 defineOptions({ name: 'RoleManagement' })
+
+const { t } = useI18n()
 
 /* ---------------- 查询条件 / 列表 ---------------- */
 const loading = ref(false)
@@ -103,9 +114,9 @@ const query = reactive<RoleQuery>({ roleName: '', pageNum: 1, pageSize: 20 })
 const formRef = ref<FormInstance>()
 const form = reactive<Partial<RoleRow>>({ id: undefined, roleName: '', roleDesc: '' })
 
-const rules: FormRules = {
-  roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }]
-}
+const rules = computed<FormRules>(() => ({
+  roleName: [{ required: true, message: t('role.inputName'), trigger: 'blur' }]
+}))
 
 /** 拉列表（分页由 mock 内部处理，换真实接口后逻辑不变） */
 async function fetchData() {
@@ -115,7 +126,7 @@ async function fetchData() {
     rows.value = res.list
     total.value = res.total
   } catch (e) {
-    ElMessage.error((e as Error).message || '查询失败')
+    ElMessage.error((e as Error).message || t('common.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -158,7 +169,7 @@ async function handleSubmit() {
   saving.value = true
   try {
     await saveRoleApi({ ...form })
-    ElMessage.success(form.id ? '修改成功' : '新增成功')
+    ElMessage.success(t('common.saveSuccess'))
     dialogVisible.value = false
     fetchData()
   } finally {
@@ -168,12 +179,14 @@ async function handleSubmit() {
 
 /** 删除：二次确认，取消则什么都不做 */
 async function handleDelete(row: RoleRow) {
-  const action = await ElMessageBox.confirm(`确认删除角色「${row.roleName}」吗？`, '提示', {
-    type: 'warning'
-  }).catch(() => 'cancel')
+  const action = await ElMessageBox.confirm(
+    t('role.deleteConfirm', { name: row.roleName }),
+    t('common.warmTip'),
+    { type: 'warning' }
+  ).catch(() => 'cancel')
   if (action === 'cancel') return
   await deleteRoleApi(row.id)
-  ElMessage.success('删除成功')
+  ElMessage.success(t('common.deleteSuccess'))
   fetchData()
 }
 
@@ -220,6 +233,19 @@ onMounted(fetchData)
 }
 
 .total-text {
+  font-size: 12px;
+  color: $text-secondary;
+}
+
+.table-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.head-hint {
   font-size: 12px;
   color: $text-secondary;
 }

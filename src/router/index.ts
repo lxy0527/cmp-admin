@@ -34,7 +34,8 @@ function buildModuleRoutes(): RouteRecordRaw[] {
           /** 访问该页所需的权限点；不填 = 登录后即可访问 */
           permission: item.permission
         },
-        props: component ? undefined : { title: item.title, desc: `${mod.title} / ${item.title}` }
+        // 有真实页面时，把菜单里声明的静态 props 透传给组件（例如警报页的 categoryId）
+        props: component ? (item.props ?? undefined) : { title: item.title, desc: `${mod.title} / ${item.title}` }
       } as RouteRecordRaw
     })
   }))
@@ -47,6 +48,20 @@ const routes: RouteRecordRaw[] = [
     name: 'login',
     component: () => import('@/views/login/LoginView.vue'),
     meta: { public: true, title: '系统登录' }
+  },
+  {
+    // 注册：接口真实存在（/api/userRegister + /api/userUnRegister 校验账号）
+    path: '/register',
+    name: 'register',
+    component: () => import('@/views/login/RegisterView.vue'),
+    meta: { public: true, title: '注册账号' }
+  },
+  {
+    // 找回密码：**后端尚未提供接口**，本页为界面预留（页内已明确告知）
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/login/ForgotPasswordView.vue'),
+    meta: { public: true, title: '找回密码' }
   },
   {
     path: '/',

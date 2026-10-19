@@ -153,10 +153,19 @@ export const P = { roleAdd: 'role:add', /* ... */ }
 
 ## 部署（Cloudflare Pages）
 
-**域名还没到，先用 Pages 默认域名 `https://cmp-admin.pages.dev` 看线上效果**（免 ICP、全球边缘节点）。
+**域名还没到，先用 Pages 默认域名 `https://cmp-admin-892.pages.dev` 看线上效果**（免 ICP、全球边缘节点）。
+
+> ⚠️ **域名注意**：Cloudflare 项目名是 `cmp-admin`，但**默认域名不是 `cmp-admin.pages.dev`** ——
+> 那个域名已被别人的项目占用（一个叫 SME Mailer 的应用），Cloudflare 给本项目自动分了 `-892` 后缀。
+> 已实测确认（2026-10-17），别照项目名去拼地址。
+
+> ⚠️ **线上版目前只有壳子可用**：Cloudflare Pages 上没有 vite 代理，
+> 而接口只在内网（`http://192.168.77.15:82`），所以**数据页面在线上会取不到数据**（返回 405 / 空表）。
+> 登录、菜单、路由、三语、看板（mock）都正常。要线上也能出数据，需要后端提供公网地址，
+> 或给生产构建加一套"演示模式"（内置示例数据）。
 
 ```bash
-npx wrangler@3 login      # 一次性授权（凭证在 %APPDATA%\xdg.config\.wrangler）
+npx wrangler@4 login      # 一次性授权（凭证在 %APPDATA%\xdg.config\.wrangler）
 bash deploy.sh            # 构建 + 部署
 ```
 

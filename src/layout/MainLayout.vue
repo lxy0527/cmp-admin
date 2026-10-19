@@ -1,5 +1,8 @@
 <template>
   <div class="layout">
+    <!-- 演示模式横幅：仅公网示例构建时出现（VITE_DEMO_MODE=true），关不掉 -->
+    <DemoBanner />
+
     <!-- ---------------- 顶栏信息条 ---------------- -->
     <header class="topbar">
       <!-- 左：logo + 项目信息 -->
@@ -10,8 +13,8 @@
             <el-icon class="project-icon"><OfficeBuilding /></el-icon>
             <span class="ellipsis">洪福西樓（洪福西樓）</span>
           </div>
-          <div class="project-meta ellipsis">項目類型：Production</div>
-          <div class="project-meta ellipsis">工程編號：SSLS9</div>
+          <div class="project-meta ellipsis">{{ t('topbar.projectType') }}：Production</div>
+          <div class="project-meta ellipsis">{{ t('topbar.projectNo') }}：SSLS9</div>
         </div>
       </div>
 
@@ -20,15 +23,15 @@
         <div class="info-block">
           <div class="info-head">
             <el-icon class="dot-red"><WarningFilled /></el-icon>
-            <span class="info-title">微網環境監測</span>
+            <span class="info-title">{{ t('topbar.environmentMonitoring') }}</span>
           </div>
           <div class="info-line">
-            <span>網關：<em class="off">Offline</em></span>
+            <span>{{ t('topbar.gateway') }}：<em class="off">Offline</em></span>
             <span class="sep">|</span>
-            <span>風速：<em>-- m/s</em></span>
+            <span>{{ t('topbar.windSpeed') }}：<em>-- m/s</em></span>
           </div>
           <div class="info-line">
-            <span>生產日期：<em>{{ dateText }}</em></span>
+            <span>{{ t('topbar.productionDate') }}：<em>{{ dateText }}</em></span>
           </div>
         </div>
 
@@ -38,9 +41,9 @@
             <el-icon class="sun"><Sunny /></el-icon>
           </div>
           <div class="info-line">
-            <span>體感温度 <em>67</em></span>
+            <span>{{ t('topbar.feelsLike') }} <em>67</em></span>
             <span class="sep">|</span>
-            <span>濕度 <em>72%</em></span>
+            <span>{{ t('topbar.humidity') }} <em>72%</em></span>
           </div>
         </div>
 
@@ -52,19 +55,40 @@
           <div class="info-line">
             <span>{{ timeText }}</span>
             <span class="sep">|</span>
-            <span class="lunar">{{ weekText }} · 農曆 {{ lunarText }}</span>
+            <span class="lunar">{{ weekText }} · {{ t('topbar.lunar') }} {{ lunarText }}</span>
           </div>
         </div>
 
         <div class="info-block alarm">
-          <div class="info-title">報警通知</div>
-          <div class="info-line">未處理報警: 現場工作還未需處理</div>
-          <div class="info-line">註冊總保養: --</div>
+          <div class="info-title">{{ t('topbar.alarmNotice') }}</div>
+          <div class="info-line">{{ t('topbar.unprocessedAlarm') }}: 現場工作還未需處理</div>
+          <div class="info-line">{{ t('topbar.maintenance') }}: --</div>
         </div>
       </div>
 
       <!-- 右：用户 -->
       <div class="topbar-right">
+        <!-- 语言切换：繁 / 简 / 英（默认繁，选择结果存 localStorage） -->
+        <el-dropdown trigger="click" @command="handleLocaleCommand">
+          <span class="locale-switch">
+            <el-icon><Switch /></el-icon>
+            <span class="locale-label">{{ currentLocaleLabel }}</span>
+            <el-icon class="arrow"><ArrowDown /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="opt in LOCALE_OPTIONS"
+                :key="opt.value"
+                :command="opt.value"
+                :disabled="opt.value === currentLocale"
+              >
+                {{ opt.label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
         <el-icon class="sys-icon"><Setting /></el-icon>
         <el-dropdown trigger="click" @command="handleCommand">
           <span class="user">
@@ -76,9 +100,9 @@
           </span>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="dashboard">系统监控概览</el-dropdown-item>
-              <el-dropdown-item command="password">修改密码</el-dropdown-item>
-              <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              <el-dropdown-item command="dashboard">{{ t('dashboard.title') }}</el-dropdown-item>
+              <el-dropdown-item command="password">{{ t('navigationBar.changePassword') }}</el-dropdown-item>
+              <el-dropdown-item command="logout" divided>{{ t('navigationBar.logout') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -100,7 +124,7 @@
             <Setting v-else />
           </el-icon>
         </span>
-        {{ mod.title }}
+        {{ moduleLabel(mod) }}
         <span v-if="mod.badge" class="tab-badge">{{ mod.badge }}</span>
       </button>
 
@@ -148,20 +172,43 @@ import {
   OfficeBuilding,
   Setting,
   Sunny,
+  Switch,
   UserFilled,
   WarningFilled
 } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
+import DemoBanner from '@/components/DemoBanner.vue'
 import MenuTree from './MenuTree.vue'
 import { useUserStore } from '@/store/user'
 import { useMenuStore } from '@/store/menu'
 import { findAncestorKeys, type MenuNode } from '@/config/menuTypes'
-import { formatDate, formatLunar, formatTime, formatWeek } from '@/utils/format'
+import { formatDate, formatLunar, formatTime } from '@/utils/format'
+import { useI18n } from 'vue-i18n'
+import { LOCALE_OPTIONS, setLocale, type LocaleKey } from '@/locales'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const menuStore = useMenuStore()
+
+/* ---------------- 多语言（繁 / 简 / 英） ---------------- */
+const { t, locale } = useI18n()
+
+const currentLocale = computed(() => locale.value as LocaleKey)
+
+const currentLocaleLabel = computed(
+  () => LOCALE_OPTIONS.find((o) => o.value === currentLocale.value)?.label || '繁體中文'
+)
+
+/** 顶部大 Tab 显示名：有 titleKey 走 i18n，否则用 title 兜底 */
+function moduleLabel(mod: MenuNode): string {
+  return mod.titleKey ? t(mod.titleKey) : mod.title
+}
+
+/** 切换语言（写 localStorage + 同步 <html lang>，页面不重载） */
+function handleLocaleCommand(value: string) {
+  setLocale(value as LocaleKey)
+}
 
 /* ---------------- 顶栏时钟 ---------------- */
 const now = ref(new Date())
@@ -185,7 +232,8 @@ onBeforeUnmount(() => {
 
 const dateText = computed(() => formatDate(now.value))
 const timeText = computed(() => formatTime(now.value))
-const weekText = computed(() => formatWeek(now.value))
+/** 星期几走 i18n（formatWeek 里是写死的中文，切英文就会露馅） */
+const weekText = computed(() => t(`common.weekdays.${now.value.getDay()}`))
 const lunarText = computed(() => formatLunar(now.value))
 
 /* ---------------- 菜单 / Tab（数据全部来自 store，本组件不判断权限） ---------------- */
@@ -271,7 +319,11 @@ async function handleCommand(command: string) {
     return
   }
   if (command === 'logout') {
-    await ElMessageBox.confirm('确认退出登录吗？', '提示', { type: 'warning' }).catch(() => 'cancel')
+    await ElMessageBox.confirm(
+      t('navigationBar.logoutConfirmMessage'),
+      t('navigationBar.logoutConfirmTitle'),
+      { type: 'warning' }
+    ).catch(() => 'cancel')
     await userStore.logout()
     router.replace('/login')
   }
@@ -470,6 +522,30 @@ async function handleCommand(command: string) {
 .arrow {
   color: $text-secondary;
   font-size: 12px;
+}
+
+/* 语言切换入口（繁 / 简 / 英） */
+.locale-switch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: $text-main;
+  cursor: pointer;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.18s;
+
+  &:hover {
+    color: $primary;
+    border-color: $primary;
+  }
+}
+
+.locale-label {
+  line-height: 1.2;
 }
 
 /* ---------------- 大 Tab ---------------- */

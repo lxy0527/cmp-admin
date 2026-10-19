@@ -28,10 +28,20 @@ export const P = {
   roleEdit: 'role:edit',
   /** 角色管理：删除 */
   roleDelete: 'role:delete',
-  /** 报警信息管理 */
+  /** 报警信息管理（旧命名，保留兼容，实际已不挂在菜单上） */
   alarmInfo: 'alarm:info',
-  /** 图片报警管理 */
+  /** 图片报警管理（旧命名，同上） */
   alarmImage: 'alarm:image',
+  /** 删除警报 —— 文档明确只有后端管理员（Role=1）有该权限 */
+  alarmDelete: 'alarm:delete',
+  /** 客户管理：查询 */
+  customerQuery: 'customer:query',
+  /** 客户管理：增删改 + 关联账号 */
+  customerEdit: 'customer:edit',
+  /** 照片墙档案管理（= 相册/分类，不是报警） */
+  photoWall: 'photo:wall',
+  /** 照片墙资源管理（= 图片/视频，不是报警） */
+  photoContent: 'photo:content',
   /** 推送地址配置 */
   pushAddress: 'push:address',
 
@@ -70,7 +80,12 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     P.roleDelete,
     P.alarmInfo,
     P.alarmImage,
-    P.pushAddress
+    P.alarmDelete,
+    P.photoWall,
+    P.photoContent,
+    P.pushAddress,
+    P.customerQuery,
+    P.customerEdit
   ],
   // 现场只读角色：能看 Data Receiving，不能进 CMP Setting（用来演示按权限隐藏整个模块 Tab）
   观察者_Viewer: [P.dataReceivingView]

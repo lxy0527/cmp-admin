@@ -20,8 +20,13 @@
 export interface MenuNode {
   /** 稳定唯一键（默认取 path，后端给 id 就用 id），用于展开状态、key、选中判断 */
   key: string
-  /** 显示名 */
+  /** 显示名（兜底：i18n 不可用或没有 titleKey 时直接显示它） */
   title: string
+  /**
+   * i18n 的 key（例如 `menu.cmpSettingItems.role`）。
+   * 有它就优先翻译，没有再退回 title —— 这样静态配置和后端下发都能用同一套渲染。
+   */
+  titleKey?: string
   /**
    * 路由的真实完整路径，例如 `/data-receiving/permitted-to-work`
    * - 叶子节点：点击后跳这里

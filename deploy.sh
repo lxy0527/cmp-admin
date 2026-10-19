@@ -15,7 +15,10 @@
 #   4) --commit-dirty=true：本地有未提交改动时也照样部署（否则会警告/可能拒绝）
 # ============================================================
 
-CF_PROJECT="cmp-admin"                  # Cloudflare Pages 项目名 → 默认地址 https://cmp-admin.pages.dev
+# ⚠️ 项目名是 cmp-admin，但**默认域名不等于 <项目名>.pages.dev**：
+#    因为 cmp-admin.pages.dev 已被别人的项目占用（一个叫 SME Mailer 的应用），
+#    Cloudflare 自动给本项目分了带后缀的域名。实际地址见下面 CF_URL。
+CF_PROJECT="cmp-admin"                  # Cloudflare Pages 项目名（域名不是它，见 CF_URL）
 CF_BRANCH="main"                        # 生产分支，必须和项目里的 production-branch 一致
 CF_CMD="npx --yes wrangler@4"
 
@@ -23,7 +26,8 @@ cd "$(dirname "$0")"
 echo "==> 当前目录: $(pwd)"
 
 # 域名还没到位，先用 Pages 默认域名；后面绑好自定义域名再改这里
-CF_URL="https://${CF_PROJECT}.pages.dev"
+# 已实测确认（2026-10-17）：cmp-admin.pages.dev 是别人的项目，我们的在 -892 后缀上
+CF_URL="https://${CF_PROJECT}-892.pages.dev"
 
 # ---- 1. 清理只读属性（避免上传时"路径无读写权限"）----
 echo "==> [1/3] 清理只读属性"
