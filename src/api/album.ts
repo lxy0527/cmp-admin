@@ -25,6 +25,7 @@ import {
   demoArchiveUpdate,
   demoResourceDelete,
   demoResourceList,
+  demoResourceReplace,
   demoResourceUpdate,
   demoResourceUpload
 } from '@/demo'
@@ -159,4 +160,36 @@ export async function uploadResource(folderId: number, files: File[]): Promise<v
     data: form
     // 注意：不要手动设置 Content-Type，交给浏览器带 boundary
   })
+}
+
+/**
+ * 替换图片：POST /api/albumImageReplace（multipart 表单）
+ *
+ * 请求字段（文档 2026-10-18）：
+ *   Id   —— **要替换的那张图片自身的 Id**（= PhotoResourceRow.Id），不是相册 Id
+ *   file —— 文件本体
+ *
+ * ⚠️ 后端硬性要求：**扩展名必须和原图一致**（文档第 4 条）。
+ *    因为它是在**原地覆盖同名文件**（数据库里存的 URL 不变），
+ *    换了后缀就会出现"文件名叫 abc.png、内容却是 JPEG"的坏图。
+ *
+ * ⚠️ 由此推出两件事，前端必须处理，否则会以为没生效：
+ *    1. 响应只返回 ReturnCode，**不返回新 URL** → 要重新拉列表
+ *    2. URL 不变 → **浏览器会继续显示缓存的旧图** → 必须加时间戳破缓存
+ *       （见 PhotoContent.vue 的 imgSrc()）
+ */
+export async function replaceResource(Id: number, file: File): Promise<void> {
+  if (DEMO_MODE) return demoResourceReplace(Id, file)
+  const form = new FormData()
+  form.append('Id', String(Id))
+  form.append('file', file)
+  await request({ url: '/albumImageReplace', method: 'post', data: form })
+}
+
+/** 从 URL 里取扩展名（小写、不含点）；取不到返回空串 */
+export function extOfUrl(url: string): string {
+  if (!url) return ''
+  const clean = url.split('?')[0].split('#')[0]
+  const m = clean.match(/\.([a-zA-Z0-9]+)$/)
+  return m ? m[1].toLowerCase() : ''
 }

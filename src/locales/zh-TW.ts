@@ -523,7 +523,11 @@ export default {
     selectFile: '點擊或拖拽單張圖片到此處',
     createNote:
       '上傳接口只接收「檔案」和「目標檔案夾」；填寫的資源名稱會在上傳成功後自動設定。',
-    editNote: '修改接口（/albumImageEdit）只接受「Id + 名稱」，無法替換圖片、也無法移動檔案夾。',
+    editNote: '支援替換圖片與修改名稱；無法把圖片移動到其他檔案夾。',
+    replaceImage: '替換圖片',
+    chooseFile: '選擇檔案',
+    sameExtRequired: '格式須與原圖一致：{ext}',
+    extMismatch: '格式不一致 —— 原圖是 {want}，你選的是 {got}。後端要求必須相同，請重新選擇。',
     createSuccess: '新增成功',
     exceedSingle: '只支援單張上傳，請先移除已選檔案',
     selectFiles: '點擊或拖拽檔案到此處',

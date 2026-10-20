@@ -22,12 +22,35 @@ export interface ApiResult<T = unknown> {
   code: ApiCode
   data: T
   message?: string
+  /**
+   * 用户级 token —— **在返回体的顶层，不是 data 里面**（2026-10-17 后端文档确认）：
+   *   {"code":"SUCCESS","message":"OK","token":"xxx","data":{...}}
+   * 之后每个请求带 `Authorization: Bearer <token>`。
+   */
+  token?: string
+  /**
+   * 分页信息 —— 同样在**顶层**，跟 data 平级（2026-10-17 新增）：
+   *   {"code":"SUCCESS","page":0,"pagecount":1,"totalcount":2,"data":[...]}
+   * ⚠️ page 从 **0** 开始。
+   */
+  page?: number
+  pagecount?: number
+  totalcount?: number
 }
 
 /**
- * 分页请求参数（前端分页用）
- * 后端明确**不做分页**，列表接口一次返回全量数组，分页/筛选都在前端做。
- * 所以这个类型只描述"页面自己的查询条件 + 当前页"，不再往接口传 pageNum/pageSize。
+ * 服务端分页的请求参数（2026-10-17 后端新增）
+ * ⚠️ `page` 从 **0** 开始，不传默认 0；`pagesize` 不传默认 20。
+ */
+export interface PageParams {
+  page?: number
+  pagesize?: number
+}
+
+/**
+ * 分页请求参数（**旧的**前端分页版本，逐步淘汰）
+ * 后端原本不分页，列表接口一次返回全量，分页在前端做。
+ * 现在后端所有列表页都加了服务端分页，新代码用 PageParams。
  */
 export interface PageQuery {
   pageNum: number

@@ -34,13 +34,15 @@ export const TOKEN_KEY = 'token'
 export const USER_TOKEN_KEY = 'userToken'
 
 /**
- * token 放在哪个请求头里 —— **由后端定**，改 .env 即可，不用动代码：
- *   VITE_AUTH_TOKEN_HEADER=UserToken      （默认，跟他们 ApiId/ApiKey 的风格一致）
- *   VITE_AUTH_TOKEN_HEADER=Authorization  （如果后端用标准头）
- *   VITE_AUTH_TOKEN_PREFIX="Bearer "      （配合 Authorization 时用）
+ * token 放在哪个请求头里 —— **后端 2026-10-17 文档定为**：
+ *   Authorization: Bearer <token>
+ *
+ * 仍保留可配置（万一以后改）：
+ *   VITE_AUTH_TOKEN_HEADER=Authorization    （默认）
+ *   VITE_AUTH_TOKEN_PREFIX=Bearer           （默认；代码会自动补中间的空格）
  */
-const AUTH_TOKEN_HEADER = (import.meta.env.VITE_AUTH_TOKEN_HEADER as string) || 'UserToken'
-const AUTH_TOKEN_PREFIX = (import.meta.env.VITE_AUTH_TOKEN_PREFIX as string) || ''
+const AUTH_TOKEN_HEADER = (import.meta.env.VITE_AUTH_TOKEN_HEADER as string) || 'Authorization'
+const AUTH_TOKEN_PREFIX = (import.meta.env.VITE_AUTH_TOKEN_PREFIX as string) || 'Bearer'
 
 /** 后端接口前缀：开发环境走 vite proxy，生产环境应指向自家后端网关 */
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
@@ -74,8 +76,9 @@ service.interceptors.request.use((config) => {
   const userToken = storage.get<string>(USER_TOKEN_KEY)
   if (userToken) {
     config.headers = config.headers || {}
-    ;(config.headers as Record<string, string>)[AUTH_TOKEN_HEADER] =
-      `${AUTH_TOKEN_PREFIX}${userToken}`
+    // 前缀和 token 之间必须有空格；.env 会吃掉行尾空格，所以在这里补，别依赖配置里写 "Bearer "
+    const value = AUTH_TOKEN_PREFIX ? `${AUTH_TOKEN_PREFIX} ${userToken}` : userToken
+    ;(config.headers as Record<string, string>)[AUTH_TOKEN_HEADER] = value
   }
   return config
 })

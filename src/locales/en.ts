@@ -509,8 +509,12 @@ export default {
     selectFile: 'Click or drag a single image here',
     createNote:
       'The upload API only accepts the file and the target folder; the name you enter is applied automatically after the upload succeeds.',
-    editNote:
-      'The edit API (/albumImageEdit) only accepts Id + Name — it cannot replace the image or move it to another folder.',
+    editNote: 'You can replace the image and rename it, but cannot move it to another folder.',
+    replaceImage: 'Replace Image',
+    chooseFile: 'Choose File',
+    sameExtRequired: 'Format must match the original: {ext}',
+    extMismatch:
+      'Format mismatch — original is {want}, you chose {got}. The API requires them to match; please pick another file.',
     createSuccess: 'Added successfully',
     exceedSingle: 'Only one file is allowed — please remove the selected file first',
     selectFiles: 'Click or drag files here',

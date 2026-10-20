@@ -66,8 +66,8 @@
         <el-table-column :label="t('photoContent.image')" width="110" align="center">
           <template #default="{ row }">
             <el-image
-              :src="withBase(row.URL)"
-              :preview-src-list="[withBase(row.URL)]"
+              :src="imgSrc(row.URL, row.Id)"
+              :preview-src-list="[imgSrc(row.URL, row.Id)]"
               preview-teleported
               fit="cover"
               class="thumb"
@@ -171,8 +171,8 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item :label="t('photoContent.image')">
           <el-image
-            :src="withBase(form.URL)"
-            :preview-src-list="[withBase(form.URL)]"
+            :src="imgSrc(form.URL, form.Id)"
+            :preview-src-list="[imgSrc(form.URL, form.Id)]"
             preview-teleported
             fit="cover"
             class="thumb-lg"
@@ -183,6 +183,38 @@
               </div>
             </template>
           </el-image>
+        </el-form-item>
+
+        <!--
+          替换图片（/api/albumImageReplace）
+          ⚠️ 后端要求：**扩展名必须和原图一致**（原地覆盖同名文件，改后缀会变成坏图）。
+          所以在**选文件时就校验**，不一致直接拦下、不发请求。
+        -->
+        <el-form-item :label="t('photoContent.replaceImage')">
+          <div class="replace-wrap">
+            <div class="replace-row">
+              <input
+                ref="replaceInputRef"
+                type="file"
+                accept="image/*"
+                class="replace-input"
+                @change="onReplacePicked"
+              />
+              <el-button size="small" :icon="Refresh" @click="pickReplaceFile">
+                {{ t('photoContent.chooseFile') }}
+              </el-button>
+              <span class="replace-ext">
+                {{ t('photoContent.sameExtRequired', { ext: originalExt || '——' }) }}
+              </span>
+            </div>
+
+            <div v-if="replaceFile" class="replace-picked">
+              <span class="replace-name">{{ replaceFile.name }}</span>
+              <el-button link type="danger" size="small" @click="clearReplace">
+                {{ t('common.cancel') }}
+              </el-button>
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item :label="t('photoContent.type')">
@@ -225,6 +257,8 @@ import {
   deleteResources,
   getArchiveList,
   getResourceList,
+  replaceResource,
+  extOfUrl,
   updateResource,
   uploadResource,
   type PhotoArchiveRow,
@@ -284,7 +318,7 @@ function onSelectionChange(rows: PhotoResourceRow[]) {
   selectedIds.value = rows.map((r) => r.Id)
 }
 
-/* ---------------- 改名 ---------------- */
+/* ---------------- 改名 / 替换图片 ---------------- */
 const editVisible = ref(false)
 const saving = ref(false)
 const formRef = ref<FormInstance>()
@@ -294,11 +328,66 @@ const rules = computed<FormRules>(() => ({
   Name: [{ required: true, message: t('photoContent.inputName'), trigger: 'blur' }]
 }))
 
+/* ---- 替换图片（/api/albumImageReplace） ---- */
+const replaceInputRef = ref<HTMLInputElement>()
+const replaceFile = ref<File | undefined>(undefined)
+/** 原图扩展名（选文件时要跟它比对） */
+const originalExt = computed(() => extOfUrl(form.URL))
+
+/**
+ * 替换成功过的图片 Id → 时间戳。
+ * 原因：后端是**原地覆盖同名文件**，URL 不变，浏览器会继续用缓存的旧图。
+ * 所以对这些 Id 的图片地址追加 `?v=时间戳`，强制重新拉。
+ */
+const replacedStamp = ref<Record<number, number>>({})
+
+/** 图片地址：拼上资源主机 + 必要时加时间戳破缓存 */
+function imgSrc(url: string, id?: number) {
+  const base = withBase(url)
+  const stamp = id ? replacedStamp.value[id] : 0
+  if (!stamp) return base
+  return `${base}${base.includes('?') ? '&' : '?'}v=${stamp}`
+}
+
 function openEdit(row?: PhotoResourceRow) {
   form.Id = row?.Id
   form.Name = row?.Name ?? ''
   form.URL = row?.URL ?? ''
+  replaceFile.value = undefined
+  if (replaceInputRef.value) replaceInputRef.value.value = ''
   editVisible.value = true
+}
+
+function pickReplaceFile() {
+  replaceInputRef.value?.click()
+}
+
+function clearReplace() {
+  replaceFile.value = undefined
+  if (replaceInputRef.value) replaceInputRef.value.value = ''
+}
+
+/**
+ * 选文件时**立即校验扩展名**（后端硬性要求：必须和原图一致）
+ * 不一致就直接拦下、不发请求 —— 避免传完几 MB 才被后端拒。
+ */
+function onReplacePicked(evt: Event) {
+  const input = evt.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  const want = originalExt.value
+  const got = (file.name.split('.').pop() || '').toLowerCase()
+
+  // 原图没有可识别的扩展名（例如演示数据里的 blob:）时不做拦截，交给后端判断
+  if (want && got !== want) {
+    ElMessage.warning(
+      t('photoContent.extMismatch', { want: want.toUpperCase(), got: (got || '未知').toUpperCase() })
+    )
+    clearReplace()
+    return
+  }
+  replaceFile.value = file
 }
 
 async function submitEdit() {
@@ -306,6 +395,11 @@ async function submitEdit() {
   if (!valid || !form.Id) return
   saving.value = true
   try {
+    // 顺序：先换图（multipart），再改名（JSON）。任一失败都会走 catch。
+    if (replaceFile.value) {
+      await replaceResource(form.Id, replaceFile.value)
+      replacedStamp.value[form.Id] = Date.now()
+    }
     await updateResource(form.Id, form.Name)
     ElMessage.success(t('common.saveSuccess'))
     editVisible.value = false
@@ -575,6 +669,39 @@ async function handleBatchDelete() {
   height: 100px;
   border-radius: 6px;
   background: #f4f5f7;
+}
+
+/* 替换图片 */
+.replace-wrap {
+  width: 100%;
+}
+
+.replace-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.replace-input {
+  display: none;
+}
+
+.replace-ext {
+  font-size: 12px;
+  color: $text-secondary;
+}
+
+.replace-picked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.replace-name {
+  color: $text-main;
+  word-break: break-all;
 }
 
 .thumb-placeholder--lg {

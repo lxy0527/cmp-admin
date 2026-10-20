@@ -597,6 +597,22 @@ export async function demoResourceUpload(AlbumId: number, files: File[]): Promis
   })
 }
 
+/**
+ * 演示模式的替换图片（对应 `/albumImageReplace`）
+ * 用新的 objectURL 顶掉旧 URL —— 列表里**一眼能看出图换了**。
+ * （真实后端是"原地覆盖、URL 不变"，那种情况前端靠时间戳破缓存，见 PhotoContent.vue 的 imgSrc）
+ */
+export async function demoResourceReplace(Id: number, file: File): Promise<void> {
+  await delay(260)
+  const target = resources.find((r) => r.Id === Id)
+  if (!target) return
+  try {
+    target.URL = URL.createObjectURL(file)
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function demoResourceDelete(ids: number[]): Promise<void> {
   await delay(160)
   ids.forEach((id) => {

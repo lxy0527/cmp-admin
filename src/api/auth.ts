@@ -20,13 +20,11 @@ export type { LoginParams, UserInfo }
  * 登录：POST /api/userLogin
  * 文档：UserName 可以传**账号或 Email**。
  *
- * 用户级鉴权已确认走 **token**（后端 2026-10-17 决定）：
- *   登录成功后后端返回一个随机串，前端存起来，之后每个请求都带上，
- *   后端拿它反查 UserId —— 这样客户端就没法靠改 UserId 冒充别人。
- *
- * ⚠️ token 放在响应体的哪个字段，后端还没定死，这里做了兼容：
- *      data.Token / data.UserToken / data.token
- *    等后端确认字段名后，只留那一个即可（顺便让后端把它写进文档）。
+ * 用户级鉴权已确认走 **token**（后端 2026-10-17 文档）：
+ *   响应体**顶层**会多一个 token（与 data 平级，**不在 data 里面**）：
+ *     {"code":"SUCCESS","message":"OK","token":"xxx","data":{...}}
+ *   之后每个请求带 `Authorization: Bearer <token>`，
+ *   所有"按登录账号返回数据"的接口改用它识别身份，不再传 UserId。
  *
  * @returns token（前端登录标记）+ info（用户信息，含 Role）+ userToken（后端凭据）
  */
@@ -39,11 +37,12 @@ export async function loginApi(
     return res
   }
 
-  const { data } = await request<BackendLoginData>({
+  const res = await request<BackendLoginData>({
     url: '/userLogin',
     method: 'post',
     data: { UserName: params.username, Password: params.password }
   })
+  const data = res.data
 
   // 文档：ReturnCode 成功返回 SUCCESS，失败返回具体原因（不是 HTTP 状态码）
   if (!data || data.ReturnCode !== 'SUCCESS') {
@@ -52,8 +51,8 @@ export async function loginApi(
 
   const role = Number(data.Role ?? 0)
 
-  // 后端下发的用户级 token：字段名还没定，先兼容几种常见写法
-  const userToken = String(data.Token ?? data.UserToken ?? data.token ?? '').trim()
+  // ★ token 在返回体**顶层**（res.token），不是 data.token —— 2026-10-17 文档确认
+  const userToken = String(res.token ?? '').trim()
   if (userToken) storage.set(USER_TOKEN_KEY, userToken)
 
   return {
@@ -71,7 +70,7 @@ export async function loginApi(
   }
 }
 
-/** `/api/userLogin` 的响应体（字段名照文档；Token 系字段待后端确认） */
+/** `/api/userLogin` 的 data 部分（字段名照文档） */
 interface BackendLoginData {
   ReturnCode?: string
   Id?: number
@@ -84,10 +83,6 @@ interface BackendLoginData {
   Permission?: number
   Head?: string | null
   Status?: number
-  /** 用户级 token —— 具体字段名待后端确认 */
-  Token?: string
-  UserToken?: string
-  token?: string
 }
 
 /**
