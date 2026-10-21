@@ -67,19 +67,34 @@ const service: AxiosInstance = axios.create({
 })
 
 /**
- * 请求拦截：带上后端下发的用户级 token（有就带，没有就不带）
+ * 拼出鉴权请求头（`Authorization: Bearer xxx`）。
+ * 统一在这里拼，避免调用方自己拼出"Bearer 少一个空格"的坑。
  *
- * 之前这里发的是 `Authorization: Bearer <前端伪 token>` —— 那个 token 是前端自己造的，
- * 后端不认识，纯噪音还容易误导排查，已去掉。现在只发真凭据。
+ * 两种用途：
+ *   1. 拦截器自动注入**登录 token**
+ *   2. 注册 / 改密码时显式传**一次性验证 token**（10 分钟有效、只能用一次）
+ */
+export function authHeader(token: string): Record<string, string> {
+  if (!token) return {}
+  return { [AUTH_TOKEN_HEADER]: AUTH_TOKEN_PREFIX ? `${AUTH_TOKEN_PREFIX} ${token}` : token }
+}
+
+/**
+ * 请求拦截：自动带上**登录 token**（有就带，没有就不带）
+ *
+ * ⚠️ 关键：**调用方显式指定了鉴权头，就不覆盖。**
+ *    注册 / 修改密码要带的是"发邮件拿到的一次性 token"，
+ *    跟登录 token 是两个完全不同的东西，覆盖掉就全错了。
  */
 service.interceptors.request.use((config) => {
+  config.headers = config.headers || {}
+  const headers = config.headers as Record<string, unknown>
+
+  // 调用方已指定（例如注册时带一次性 token）→ 尊重它
+  if (headers[AUTH_TOKEN_HEADER]) return config
+
   const userToken = storage.get<string>(USER_TOKEN_KEY)
-  if (userToken) {
-    config.headers = config.headers || {}
-    // 前缀和 token 之间必须有空格；.env 会吃掉行尾空格，所以在这里补，别依赖配置里写 "Bearer "
-    const value = AUTH_TOKEN_PREFIX ? `${AUTH_TOKEN_PREFIX} ${userToken}` : userToken
-    ;(config.headers as Record<string, string>)[AUTH_TOKEN_HEADER] = value
-  }
+  if (userToken) Object.assign(headers, authHeader(userToken))
   return config
 })
 

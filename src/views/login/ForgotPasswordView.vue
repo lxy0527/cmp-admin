@@ -4,38 +4,60 @@
       <div class="auth-logo">
         <AppLogo size="large" />
       </div>
-      <h1 class="auth-title">{{ t('authPage.forgotTitle') }}</h1>
-      <p class="auth-sub">{{ t('authPage.forgotSubtitle') }}</p>
-
-      <!--
-        这里刻意把「后端没有这个接口」摆在最上面。
-        不写清楚的话，用户填完点提交、等半天收不到邮件，只会以为系统坏了。
-      -->
-      <el-alert
-        type="warning"
-        :closable="false"
-        show-icon
-        class="auth-alert"
-        :title="t('authPage.forgotNoApi')"
-      />
+      <h1 class="auth-title">{{ t('authPage.changePwdTitle') }}</h1>
+      <p class="auth-sub">{{ t('authPage.changePwdSubtitle') }}</p>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
-        <el-form-item :label="t('authPage.account')" prop="account">
+        <el-form-item label="Email" prop="Email">
           <el-input
-            v-model="form.account"
+            v-model="form.Email"
             size="large"
-            :placeholder="t('authPage.accountRequired')"
-            :prefix-icon="User"
-            @keyup.enter="handleSubmit"
+            placeholder="name@example.com"
+            :prefix-icon="Message"
+          />
+        </el-form-item>
+
+        <el-form-item :label="t('authPage.verifyCode')" prop="VerifyCode">
+          <div class="code-row">
+            <el-input
+              v-model="form.VerifyCode"
+              size="large"
+              maxlength="6"
+              :placeholder="t('authPage.verifyCodePlaceholder')"
+              :prefix-icon="Key"
+            />
+            <el-button size="large" :disabled="codeCooldown > 0" :loading="sending" @click="sendCode">
+              {{ codeCooldown > 0 ? `${codeCooldown}s` : t('authPage.sendCode') }}
+            </el-button>
+          </div>
+        </el-form-item>
+
+        <el-form-item :label="t('authPage.newPassword')" prop="Password">
+          <el-input
+            v-model="form.Password"
+            type="password"
+            size="large"
+            show-password
+            :placeholder="t('authPage.passwordRequired')"
+            :prefix-icon="Lock"
+          />
+        </el-form-item>
+
+        <el-form-item :label="t('authPage.confirmPassword')" prop="ConfirmPassword">
+          <el-input
+            v-model="form.ConfirmPassword"
+            type="password"
+            size="large"
+            show-password
+            :placeholder="t('authPage.passwordRequired')"
+            :prefix-icon="Lock"
           />
         </el-form-item>
       </el-form>
 
       <el-button class="auth-btn" type="primary" size="large" :loading="loading" @click="handleSubmit">
-        {{ t('authPage.submitForgot') }}
+        {{ t('authPage.submitChangePwd') }}
       </el-button>
-
-      <p class="auth-hint">{{ t('authPage.forgotHint') }}</p>
 
       <div class="auth-links">
         <el-button link type="primary" @click="router.push('/login')">
@@ -48,24 +70,25 @@
 
 <script setup lang="ts">
 /**
- * 找回密码页
+ * 修改密码 / 找回密码（同一个流程）
  * ============================================================
- * ⚠️ 这页**没有可调用的接口**（已核对接口文档：找回/忘记/重置密码 四个关键词 0 命中）。
- *    旧站后台有个未文档化的 `/cmp/account/password-reset`，新接口没给。
+ * 2026-10-19 后端新增，接口：`POST /api/changePassword`
  *
- * 所以本页的行为是**诚实的**：
- *   - 顶部明确告知"后端未提供此接口、本页仅界面预留、不会发邮件"
- *   - 提交只给出"请联系管理员"的结论，**不假装发送成功**
+ * 两步（跟注册页一致）：
+ *   ① POST /api/email { Email, Scene: 'ChangePassword' }
+ *      → 后端发验证码，返回**一次性 token（10 分钟、只能用一次）**
+ *   ② POST /api/changePassword，请求头 `Authorization: Bearer <一次性token>`
+ *      body 带 VerifyCode + 新密码
  *
- * 后端一旦提供接口（比如 POST /api/userForgotPassword），把 handleSubmit 里的
- * message 换成真实请求即可，页面结构不用动。
+ * 字段已按文档确认：Email + Password（新密码）+ VerifyCode，头里带一次性 token。
  */
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { User } from '@element-plus/icons-vue'
+import { Key, Lock, Message } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
+import { changePasswordApi, sendVerifyCodeApi } from '@/api/auth'
 
 defineOptions({ name: 'ForgotPasswordView' })
 
@@ -74,22 +97,121 @@ const { t } = useI18n()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const form = reactive({ account: '' })
+const sending = ref(false)
+const codeCooldown = ref(0)
+/** 发码拿到的一次性 token；提交时放进 Authorization 头 */
+const verifyToken = ref('')
+let cooldownTimer: number | undefined
+
+const form = reactive({
+  Email: '',
+  VerifyCode: '',
+  Password: '',
+  ConfirmPassword: ''
+})
+
+function startCooldown(seconds = 60) {
+  codeCooldown.value = seconds
+  if (cooldownTimer) window.clearInterval(cooldownTimer)
+  cooldownTimer = window.setInterval(() => {
+    codeCooldown.value -= 1
+    if (codeCooldown.value <= 0 && cooldownTimer) {
+      window.clearInterval(cooldownTimer)
+      cooldownTimer = undefined
+    }
+  }, 1000)
+}
+
+onBeforeUnmount(() => {
+  if (cooldownTimer) window.clearInterval(cooldownTimer)
+})
+
+/** 邮箱改了，之前的 token 就作废（否则 token 和邮箱不是一对） */
+watch(
+  () => form.Email,
+  (now, before) => {
+    if (!verifyToken.value) return
+    if ((now || '').trim().toLowerCase() !== (before || '').trim().toLowerCase()) {
+      verifyToken.value = ''
+      form.VerifyCode = ''
+    }
+  }
+)
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const rules = computed<FormRules>(() => ({
-  account: [{ required: true, message: t('authPage.accountRequired'), trigger: 'blur' }]
+  Email: [
+    { required: true, message: t('authPage.emailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('authPage.emailInvalid'), trigger: 'blur' }
+  ],
+  VerifyCode: [
+    { required: true, message: t('authPage.verifyCodeRequired'), trigger: 'blur' },
+    { len: 6, message: t('authPage.verifyCodeLength'), trigger: 'blur' }
+  ],
+  Password: [
+    { required: true, message: t('authPage.passwordRequired'), trigger: 'blur' },
+    { min: 6, message: t('authPage.passwordTooShort'), trigger: 'blur' }
+  ],
+  ConfirmPassword: [
+    { required: true, message: t('authPage.passwordRequired'), trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (e?: Error) => void) => {
+        if (value !== form.Password) callback(new Error(t('authPage.passwordMismatch')))
+        else callback()
+      },
+      trigger: 'blur'
+    }
+  ]
 }))
+
+async function sendCode() {
+  const email = form.Email.trim()
+  if (!email) {
+    ElMessage.warning(t('authPage.emailRequired'))
+    return
+  }
+  if (!EMAIL_RE.test(email)) {
+    ElMessage.warning(t('authPage.emailInvalid'))
+    return
+  }
+  sending.value = true
+  try {
+    verifyToken.value = await sendVerifyCodeApi(email, 'ChangePassword')
+    ElMessage.success(t('authPage.codeSent'))
+    startCooldown(60)
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || t('authPage.codeSendFailed'))
+  } finally {
+    sending.value = false
+  }
+}
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
+  if (!verifyToken.value) {
+    ElMessage.warning(t('authPage.sendCodeFirst'))
+    return
+  }
 
   loading.value = true
-  // 故意加一点延迟，让"提交"有反馈感，而不是瞬间弹提示
-  await new Promise((r) => setTimeout(r, 300))
-  loading.value = false
-
-  ElMessage.warning(t('authPage.forgotSubmitted'))
+  try {
+    await changePasswordApi(
+      {
+        Email: form.Email.trim(),
+        Password: form.Password,
+        VerifyCode: form.VerifyCode.trim()
+      },
+      verifyToken.value
+    )
+    ElMessage.success(t('authPage.changePwdSuccess'))
+    router.replace('/login')
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || t('authPage.changePwdFailed'))
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -129,14 +251,25 @@ async function handleSubmit() {
 }
 
 .auth-sub {
-  margin: 6px 0 18px;
+  margin: 6px 0 20px;
   font-size: 12px;
   text-align: center;
   color: $text-secondary;
 }
 
-.auth-alert {
-  margin-bottom: 16px;
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+
+  :deep(.el-input) {
+    flex: 1;
+  }
+
+  :deep(.el-button) {
+    flex: none;
+    width: 104px;
+  }
 }
 
 .auth-btn {
@@ -144,20 +277,12 @@ async function handleSubmit() {
   margin-top: 4px;
 }
 
-.auth-hint {
-  margin: 12px 0 0;
-  font-size: 11px;
-  line-height: 1.6;
-  text-align: center;
-  color: $text-secondary;
-}
-
 .auth-links {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  margin-top: 12px;
+  margin-top: 16px;
   font-size: 12px;
   color: $text-secondary;
 }

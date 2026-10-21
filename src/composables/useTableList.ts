@@ -1,35 +1,41 @@
 /**
- * 列表页通用逻辑：**前端分页 + 前端筛选**
+ * 列表页通用逻辑：**两种分页模式**
  * ============================================================
- * 为什么是前端分页：后端已明确不做分页，列表接口一次返回全量数组。
- * 所以流程是：
+ * 2026-10-20：后端 9 个列表接口全部加了服务端分页（文档 + 实测确认），
+ * 所以这里扩展成双模式，**默认仍是 `client`，老页面一行都不用改**。
  *
- *   接口（全量数组） → all
- *        ↓ computed 按查询条件过滤
- *    filtered（命中全部条件的数据）
- *        ↓ computed 按页码切片
- *     list（当前页要渲染的数据，喂给 el-table）
+ * ┌─ client（默认，兼容旧的）──────────────────────────────
+ * │   fetcher 一次拿全量 → computed 过滤 → computed 切片
+ * │   适合：数据量小、或者接口还没支持分页
+ * │
+ * └─ server（新）───────────────────────────────────────
+ *     fetchPage({ page, pageSize }) → 只拿当前页 + 总数
+ *     ⚠️ 后端 `page` **从 0 开始**，而 el-pagination 是 1 起，
+ *        所以这里统一做 `page - 1` 转换，页面不用管。
  *
- * 用法（一个列表页只需要给"怎么拿数据"和"怎么筛"，其余全由本函数处理）：
+ * 两种模式的**对外接口完全一致**，页面只改创建时那几行：
  *
- *   const query = reactive({ keyword: '', type: '' })
- *   const table = useTableList<Row>({
- *     fetcher: () => getRowsApi(),                          // 拿全量
- *     filterFn: (r) => !query.keyword || r.name.includes(query.keyword)
+ *   // client
+ *   useTableList({ fetcher: () => getRows() })
+ *
+ *   // server
+ *   useTableList({
+ *     mode: 'server',
+ *     fetchPage: ({ page, pageSize }) => getRowsPage({ page, pageSize })
  *   })
- *   table.load()     // 手动加载
- *
- *   <el-table :data="table.list.value" />
- *   <el-pagination v-model:current-page="table.pageNum.value" :total="table.total.value" />
- *
- * ⚠️ 两个容易写脏的点，这里已经统一处理：
- *   1. **筛选条件变化后必须回到第 1 页** —— 否则会停在第 5 页看着空表格（调 search()）
- *   2. **删掉几行后当前页可能越界** —— load() 里会自动把页码收回到最后一页
  */
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 
-export interface UseTableListOptions<T> {
-  /** 拿全量数据（后端不分页） */
+/** 服务端分页接口的返回形状（由 api 层拼好） */
+export interface PagedData<T> {
+  list: T[]
+  total: number
+}
+
+interface ClientOptions<T> {
+  /** 默认模式 */
+  mode?: 'client'
+  /** 拿全量数据 */
   fetcher: () => Promise<T[]>
   /** 本地筛选：返回 true 表示保留该行。读到的响应式变量会被自动追踪 */
   filterFn?: (row: T) => boolean
@@ -37,39 +43,83 @@ export interface UseTableListOptions<T> {
   pageSize?: number
 }
 
+interface ServerOptions<T> {
+  mode: 'server'
+  /** 按页取数据（page 从 1 开始，内部会 -1 再传给后端） */
+  fetchPage: (params: { page: number; pageSize: number }) => Promise<PagedData<T>>
+  pageSize?: number
+}
+
+export type UseTableListOptions<T> = ClientOptions<T> | ServerOptions<T>
+
 export function useTableList<T>(options: UseTableListOptions<T>) {
-  /** 接口返回的全量数据（不对外，页面用 filtered/list） */
+  const isServer = options.mode === 'server'
+
+  /** client 模式：接口返回的全量数据 */
   const all = ref([]) as Ref<T[]>
+  /** server 模式：当前页数据 */
+  const serverList = ref([]) as Ref<T[]>
+  /** server 模式：后端给的总条数 */
+  const serverTotal = ref(0)
+
   const loading = ref(false)
   const error = ref('')
 
   const pageNum = ref(1)
   const pageSize = ref(options.pageSize ?? 20)
 
-  /** 过滤后的全量（总数用它的长度） */
-  const filtered = computed<T[]>(() =>
-    options.filterFn ? all.value.filter((row) => options.filterFn!(row)) : all.value
-  )
+  /** client 模式的过滤结果；server 模式就是当前页 */
+  const filtered = computed<T[]>(() => {
+    if (isServer) return serverList.value
+    const fn = (options as ClientOptions<T>).filterFn
+    return fn ? all.value.filter((row) => fn(row)) : all.value
+  })
 
-  const total = computed(() => filtered.value.length)
+  const total = computed(() => (isServer ? serverTotal.value : filtered.value.length))
 
-  /** 当前页的数据 */
+  /** 当前页要渲染的数据 */
   const list = computed<T[]>(() => {
+    if (isServer) return serverList.value
     const start = (pageNum.value - 1) * pageSize.value
     return filtered.value.slice(start, start + pageSize.value)
   })
 
-  /** 拉数据（首次进入 / 增删改后刷新都用它） */
+  /**
+   * 请求序号：防止「快速翻页时旧请求后到」覆盖新结果。
+   * 只有服务端分页会遇到，client 模式无副作用。
+   */
+  let reqSeq = 0
+
+  async function loadServer() {
+    if (options.mode !== 'server') return
+    const seq = ++reqSeq
+    const res = await options.fetchPage({ page: pageNum.value, pageSize: pageSize.value })
+    if (seq !== reqSeq) return // 已有更新的请求，丢弃本次结果
+    serverList.value = res.list
+    serverTotal.value = res.total
+  }
+
+  /** 拉数据（首次进入 / 增删改后刷新 / 翻页都用它） */
   async function load() {
     loading.value = true
     error.value = ''
     try {
-      all.value = (await options.fetcher()) ?? []
-      // 数据变少时把页码收回来，避免停在越界的空白页
-      const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
-      if (pageNum.value > maxPage) pageNum.value = maxPage
+      if (isServer) {
+        await loadServer()
+        // 数据变少时把页码收回来，避免停在越界的空白页
+        const maxPage = Math.max(1, Math.ceil(serverTotal.value / pageSize.value))
+        if (pageNum.value > maxPage) {
+          pageNum.value = maxPage
+          await loadServer()
+        }
+      } else {
+        all.value = (await (options as ClientOptions<T>).fetcher()) ?? []
+        const maxPage = Math.max(1, Math.ceil(total.value / pageSize.value))
+        if (pageNum.value > maxPage) pageNum.value = maxPage
+      }
     } catch (e) {
       all.value = []
+      serverList.value = []
       error.value = (e as Error)?.message || '資料加載失敗'
       throw e
     } finally {
@@ -77,7 +127,17 @@ export function useTableList<T>(options: UseTableListOptions<T>) {
     }
   }
 
-  /** 点了"查询"：回到第 1 页（数据本身是本地过滤，不需要重新请求） */
+  /**
+   * server 模式：页码 / 每页条数变了自动重新请求（页面不用写 @current-change）。
+   * client 模式不监听（数据已在本地，computed 会自己重算）。
+   */
+  if (isServer) {
+    watch([pageNum, pageSize], () => {
+      void load()
+    })
+  }
+
+  /** 点了"查询"：回到第 1 页（server 模式下由调用方随后 load，或页码变化触发 watch） */
   function search() {
     pageNum.value = 1
   }

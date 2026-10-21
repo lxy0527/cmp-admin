@@ -15,6 +15,8 @@
  *   - 删除            → 只有后端管理员有权限
  */
 import { request } from './request'
+import { toPaged, slicePage } from './paging'
+import type { PagedData } from '@/composables/useTableList'
 import { getSessionUserId, isAdmin } from '@/utils/session'
 import {
   DEMO_MODE,
@@ -200,4 +202,54 @@ export async function deleteAlarms(ids: number[]): Promise<void> {
     method: 'post',
     data: { IdArr: ids.join(',') }
   })
+}
+
+/* ============================================================
+ * 服务端分页版（2026-10-20 后端新增）
+ * ============================================================
+ * ⚠️ 后端 `page` 从 **0** 开始；这里的 `page` 从 **1** 开始，传之前统一 -1。
+ * 空值处理沿用 compactParams（后端要求 int 不能传空字符串）。
+ */
+export async function getAlarmPage(
+  query: AlarmQuery & { page: number; pageSize: number }
+): Promise<PagedData<AlarmRow>> {
+  if (!isAdmin()) {
+    return getAlarmByUserPage({ ...query, UserId: getSessionUserId() })
+  }
+  if (DEMO_MODE) {
+    const rows = await demoAlarmList(query)
+    return slicePage(rows, query.page, query.pageSize)
+  }
+  const { page, pageSize, ...rest } = query
+  const res = await request<AlarmRow[]>({
+    url: '/alarm',
+    method: 'post',
+    data: {
+      ...compactParams(rest),
+      page: Math.max(0, page - 1),
+      pagesize: pageSize
+    }
+  })
+  return toPaged(res)
+}
+
+/** 普通账号分页查询自己公司的警报：POST /api/alarmByUser（需要 token） */
+export async function getAlarmByUserPage(
+  query: AlarmQuery & { page: number; pageSize: number; UserId: number }
+): Promise<PagedData<AlarmRow>> {
+  if (DEMO_MODE) {
+    const rows = await demoAlarmList(query)
+    return slicePage(rows, query.page, query.pageSize)
+  }
+  const { page, pageSize, ...rest } = query
+  const res = await request<AlarmRow[]>({
+    url: '/alarmByUser',
+    method: 'post',
+    data: {
+      ...compactParams(rest),
+      page: Math.max(0, page - 1),
+      pagesize: pageSize
+    }
+  })
+  return toPaged(res)
 }

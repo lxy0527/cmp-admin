@@ -7,7 +7,7 @@
  *
  * 后端接口就绪后的改法：删掉 USE_MOCK 那一支即可，函数签名和返回类型都不用动。
  */
-import { request, USER_TOKEN_KEY } from './request'
+import { request, USER_TOKEN_KEY, authHeader } from './request'
 import { storage } from '@/utils/storage'
 import { USE_MOCK, mockGetUserInfo, mockLogin, mockLogout } from '@/mock'
 import type { LoginParams, UserInfo } from '@/mock'
@@ -30,7 +30,7 @@ export type { LoginParams, UserInfo }
  */
 export async function loginApi(
   params: LoginParams
-): Promise<{ token: string; info?: UserInfo; userToken?: string }> {
+): Promise<{ info?: UserInfo; userToken: string }> {
   if (USE_MOCK) {
     const res = await mockLogin(params)
     if (!res) throw new Error('用户名或密码错误')
@@ -56,8 +56,7 @@ export async function loginApi(
   if (userToken) storage.set(USER_TOKEN_KEY, userToken)
 
   return {
-    token: `cmp-${data.Id}-${Date.now()}`,
-    userToken: userToken || undefined,
+    userToken,
     info: {
       userId: Number(data.Id ?? 0),
       username: data.UserName ?? params.username,
@@ -91,9 +90,9 @@ interface BackendLoginData {
  *    真实模式下只能沿用登录时缓存的用户信息；缓存丢了就让用户重新登录，
  *    绝不去猜一个角色 —— 猜错会导致越权或功能凭空消失。
  */
-export async function getUserInfoApi(token: string): Promise<UserInfo> {
+export async function getUserInfoApi(): Promise<UserInfo> {
   if (USE_MOCK) {
-    const res = await mockGetUserInfo(token)
+    const res = await mockGetUserInfo()
     if (!res) throw new Error('获取用户信息失败')
     return res
   }
@@ -131,12 +130,77 @@ export async function logoutApi(): Promise<void> {
  *   所以「忘记密码」页只做界面 + 明确告知，**不假装发送邮件**。
  */
 
-/** 注册参数 */
+/** 注册参数（2026-10-19 新增 VerifyCode 必填） */
 export interface RegisterParams {
   UserName: string
   Email: string
   Password: string
+  /** 文档：字段必须传，值可以为空（"不经过邀请码则手机号码必填"） */
   Tele?: string
+  /** 邮箱收到的验证码 */
+  VerifyCode: string
+}
+
+/** 邮件使用场景，后端只认这两个值 */
+export type MailScene = 'Register' | 'ChangePassword'
+
+/**
+ * 发送验证码：POST /api/email
+ * 请求：{ Email, Scene }  → 后端**用自己配置的 SMTP 发信**（前端永远拿不到授权码）
+ * 响应：顶层 `token`，**10 分钟有效、只能用一次**
+ *
+ * 这个 token 不是登录 token，只用来证明"这个邮箱确实是他的"，
+ * 提交注册 / 改密码时放在 `Authorization` 头里，用完即废。
+ *
+ * ⚠️ 演示/本地开发一律走假 token —— 文档明确写了"不要频繁测试，以免风控把邮箱拉入黑名单"。
+ *    只有「关掉 mock 且关掉演示模式」时才会真的发信。
+ */
+export async function sendVerifyCodeApi(Email: string, Scene: MailScene): Promise<string> {
+  if (USE_MOCK || DEMO_MODE) {
+    await new Promise((r) => setTimeout(r, 500))
+    return `mock-verify-token-${Date.now()}`
+  }
+  const res = await request<{ ReturnCode?: string }>({
+    url: '/email',
+    method: 'post',
+    data: { Email, Scene }
+  })
+  const token = String(res.token ?? '').trim()
+  if (!token) throw new Error('未拿到验证 token，请重试')
+  return token
+}
+
+/**
+ * 修改密码 / 找回密码：POST /api/changePassword
+ *
+ * 字段已按文档确认（2026-10-19）：
+ *   Email      必传 —— 收验证码的邮箱
+ *   Password   必传 —— **新密码**（字段名就叫 Password，不是 NewPassword）
+ *   VerifyCode 必传 —— 邮件里的 6 位验证码
+ * 请求头：`Authorization: Bearer <发邮件拿到的一次性 token>`
+ *
+ * 文档另注：*超级管理员添加账号也通用*（跟 /userRegister 一样）。
+ *
+ * @param verifyToken 发邮件（Scene: 'ChangePassword'）拿到的一次性 token
+ */
+export async function changePasswordApi(
+  params: { Email: string; Password: string; VerifyCode: string },
+  verifyToken?: string
+): Promise<void> {
+  if (USE_MOCK || DEMO_MODE) {
+    await new Promise((r) => setTimeout(r, 500))
+    return
+  }
+  await request({
+    url: '/changePassword',
+    method: 'post',
+    data: {
+      Email: params.Email,
+      Password: params.Password,
+      VerifyCode: params.VerifyCode
+    },
+    headers: verifyToken ? authHeader(verifyToken) : undefined
+  })
 }
 
 /**
@@ -154,8 +218,12 @@ export async function checkAccountAvailableApi(UserName: string): Promise<boolea
   return data?.Valid === 'Yes'
 }
 
-/** 注册：POST /api/userRegister（文档：超级管理员添加账号也通用） */
-export async function registerApi(params: RegisterParams): Promise<void> {
+/**
+ * 注册：POST /api/userRegister
+ * @param verifyToken 发邮件拿到的一次性 token —— 放在 `Authorization` 头里
+ *                    （拦截器会尊重显式指定的头，不会用登录 token 覆盖）
+ */
+export async function registerApi(params: RegisterParams, verifyToken?: string): Promise<void> {
   if (DEMO_MODE) return demoRegister(params)
   await request({
     url: '/userRegister',
@@ -164,8 +232,10 @@ export async function registerApi(params: RegisterParams): Promise<void> {
       UserName: params.UserName,
       Email: params.Email,
       Password: params.Password,
-      Tele: params.Tele ?? ''
-    }
+      Tele: params.Tele ?? '',
+      VerifyCode: params.VerifyCode
+    },
+    headers: verifyToken ? authHeader(verifyToken) : undefined
   })
 }
 

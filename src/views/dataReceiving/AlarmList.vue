@@ -317,6 +317,7 @@ import {
   deleteAlarms,
   getAlarmDetail,
   getAlarmList,
+  getAlarmPage,
   setAlarmStatus,
   setAlarmUserStatus,
   updateAlarm,
@@ -369,9 +370,11 @@ const query = reactive<{
 /** 日期范围单独放：接口要的是 StartTime / EndTime 两个字段 */
 const dateRange = ref<[string, string] | null>(null)
 
+// 服务端分页（后端 2026-10-20 新增）：7 个分类共用，靠 categoryId 区分
 const table = useTableList<AlarmRow>({
-  fetcher: () =>
-    getAlarmList({
+  mode: 'server',
+  fetchPage: ({ page, pageSize }) =>
+    getAlarmPage({
       CategoryId: props.categoryId,
       SearchTitle: query.SearchTitle,
       Level: query.Level,
@@ -379,7 +382,9 @@ const table = useTableList<AlarmRow>({
       UserStatus: query.UserStatus,
       Status: query.Status,
       StartTime: dateRange.value?.[0] ? `${dateRange.value[0]} 00:00:00` : undefined,
-      EndTime: dateRange.value?.[1] ? `${dateRange.value[1]} 23:59:59` : undefined
+      EndTime: dateRange.value?.[1] ? `${dateRange.value[1]} 23:59:59` : undefined,
+      page,
+      pageSize
     })
 })
 

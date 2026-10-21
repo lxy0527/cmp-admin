@@ -257,6 +257,7 @@ import {
   deleteResources,
   getArchiveList,
   getResourceList,
+  getResourcePage,
   replaceResource,
   extOfUrl,
   updateResource,
@@ -295,10 +296,17 @@ async function loadArchives() {
 }
 
 /* ---------------- 资源列表 ---------------- */
+// 服务端分页（后端 2026-10-20 新增）
 const table = useTableList<PhotoResourceRow>({
-  fetcher: async () => {
-    if (!albumId.value) return []
-    return getResourceList(albumId.value, keyword.value)
+  mode: 'server',
+  fetchPage: ({ page, pageSize }) => {
+    if (!albumId.value) return Promise.resolve({ list: [], total: 0 })
+    return getResourcePage({
+      AlbumId: albumId.value,
+      page,
+      pageSize,
+      SearchTitle: keyword.value
+    })
   }
 })
 

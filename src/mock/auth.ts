@@ -69,22 +69,29 @@ const USERS: Record<string, { password: string; info: UserInfo }> = {
  *
  * 真实接口：POST /auth/login
  */
-export async function mockLogin(params: LoginParams): Promise<{ token: string } | null> {
+interface MockLoginOk {
+  userToken: string
+  info: UserInfo
+}
+
+/** mock 登录成功后记住是谁，供 mockGetUserInfo 使用（真实接口是按 token 识别，不需要"反解"） */
+let currentMockUser = ''
+
+export async function mockLogin(params: LoginParams): Promise<MockLoginOk | null> {
   await delay(360)
   const user = USERS[params.username]
   if (!user || user.password !== params.password) return null
-  // token 里塞进用户名，纯粹为了 mockGetUserInfo 能"反解"出当前用户
-  return { token: `mock-token-${params.username}-${Date.now()}` }
+  currentMockUser = params.username
+  return { userToken: `mock-token-${params.username}-${Date.now()}`, info: user.info }
 }
 
 /**
  * 取当前用户信息（假实现）
- * 真实接口：GET /auth/userinfo（真实场景是靠请求头里的 token 识别用户，不需要传参）
+ * 真实接口：后端按请求头里的 token 识别用户，前端不传参
  */
-export async function mockGetUserInfo(token: string): Promise<UserInfo | null> {
+export async function mockGetUserInfo(): Promise<UserInfo | null> {
   await delay(120)
-  const username = token.split('-')[2]
-  return USERS[username]?.info || null
+  return USERS[currentMockUser]?.info || null
 }
 
 /**

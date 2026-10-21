@@ -622,6 +622,65 @@ export async function demoResourceDelete(ids: number[]): Promise<void> {
 }
 
 /* ============================================================
+ * 分页压测数据（只在 VITE_DEMO_BULK=true 时注入）
+ * ============================================================
+ * 目的：验证"服务端分页"在前端的表现 —— 多页翻页、改页大小、删到空页。
+ * 默认关闭，所以生产演示站的数据量不变；测试时用
+ *   $env:VITE_DEMO_BULK='true'; npm run build
+ * 然后把 dist 部到预览分支，不污染生产。
+ */
+if (import.meta.env.VITE_DEMO_BULK === 'true') {
+  // ① 往「机械设备」相册塞 30 张，凑出多页
+  for (let i = 1; i <= 30; i++) {
+    resources.push({
+      Id: 1000 + i,
+      AlbumId: 2,
+      Name: `批量測試圖片-${String(i).padStart(2, '0')}`,
+      URL: demoImage(`BULK-${i}`, i % 2 ? '#7c8db5' : '#5aa9a2')
+    })
+  }
+  // ② 往「移动机械」分类（CategoryId=2）塞 25 条警报
+  for (let i = 1; i <= 25; i++) {
+    const t = dotNetDate(`2026-09-${String((i % 28) + 1).padStart(2, '0')}T08:00:00`)
+    alarms.push({
+      Id: 2000 + i,
+      SN: `BULK-${String(i).padStart(3, '0')}`,
+      ProductName: '挖机',
+      ProductSN: `N${2000 + i}`,
+      ProductLocation: `一楼${i}区`,
+      SensorDevice: '监控M9',
+      SensorDeviceSN: 'M9',
+      CategoryId: 2,
+      Description: `批量測試警報 ${i}`,
+      DescriptionEn: `Bulk test alarm ${i}`,
+      AlarmValue: `${i}.00m`,
+      ConstSite: '工会大厦',
+      ConstSiteZone: 'A区',
+      Floor: 1,
+      Lon: 114.13881,
+      Lat: 22.49421,
+      Location: '工会大厦东10m',
+      Level: ((i % 3) + 1) as 1 | 2 | 3,
+      ImageUrl: null,
+      VideoUrl: null,
+      Worker: null,
+      WorkerEn: null,
+      WorkerNFC: null,
+      CustomerId: 1,
+      CustomerSN: '6666',
+      CreateTime: t,
+      UpdateTime: t,
+      AlarmTime: t,
+      FalsePositive: 0,
+      ProcessStatus: 0,
+      UserStatus: 0,
+      Status: 0,
+      Remark: ''
+    })
+  }
+}
+
+/* ============================================================
  * 客户 + 客户关联账号
  * ============================================================
  * ⚠️ 参考图上有「审批信息 / 第几步审批」，但**接口里完全没有这些字段**

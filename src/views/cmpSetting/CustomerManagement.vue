@@ -334,6 +334,7 @@ import {
   deleteCustomerUsers,
   getCustomerDetail,
   getCustomerList,
+  getCustomerPage,
   getCustomerUserList,
   setCustomerStatus,
   setCustomerUserStatus,
@@ -357,8 +358,11 @@ const saving = ref(false)
  * ============================================================ */
 const keyword = ref('')
 
+// 服务端分页（后端 2026-10-20 新增）
 const table = useTableList<CustomerRow>({
-  fetcher: () => getCustomerList(keyword.value)
+  mode: 'server',
+  fetchPage: ({ page, pageSize }) =>
+    getCustomerPage({ page, pageSize, SearchTitle: keyword.value })
 })
 
 async function handleQuery() {

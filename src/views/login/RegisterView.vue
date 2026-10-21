@@ -48,6 +48,26 @@
         <el-form-item :label="t('authPage.tele')">
           <el-input v-model="form.Tele" size="large" :placeholder="t('authPage.tele')" :prefix-icon="Iphone" />
         </el-form-item>
+
+        <!--
+          验证码：2026-10-19 后端新增。
+          流程：填邮箱 → 点「發送驗證碼」→ 后端发信并返回一次性 token（10 分钟、只能用一次）
+                → 填验证码 → 提交注册（请求头带那个 token）
+        -->
+        <el-form-item :label="t('authPage.verifyCode')" prop="VerifyCode">
+          <div class="code-row">
+            <el-input
+              v-model="form.VerifyCode"
+              size="large"
+              maxlength="6"
+              :placeholder="t('authPage.verifyCodePlaceholder')"
+              :prefix-icon="Key"
+            />
+            <el-button size="large" :disabled="codeCooldown > 0" :loading="sending" @click="sendCode">
+              {{ codeCooldown > 0 ? `${codeCooldown}s` : t('authPage.sendCode') }}
+            </el-button>
+          </div>
+        </el-form-item>
       </el-form>
 
       <el-button class="auth-btn" type="primary" size="large" :loading="loading" @click="handleSubmit">
@@ -67,20 +87,25 @@
 /**
  * 注册页
  * ============================================================
- * 接口是**真实存在**的（已核对文档）：
- *   - POST /api/userUnRegister  校验账号是否被系统保留（Valid === 'Yes' 才能注册）
- *   - POST /api/userRegister    注册（文档原话："超级管理员添加账号也通用"）
+ * 2026-10-19 后端新增「邮箱验证码」机制，注册变成两步：
  *
- * ⚠️ 管理后台一般不该开放公众自助注册（账号应由管理员创建）。
- *    这里按需求方要求提供，但真正的鉴权/风控必须由后端决定要不要放行。
+ *   ① POST /api/email { Email, Scene: 'Register' }
+ *      → 后端用自己配置的 SMTP 发验证码，**返回一次性 token（10 分钟、只能用一次）**
+ *   ② POST /api/userRegister，请求头 `Authorization: Bearer <一次性token>`，
+ *      body 带 VerifyCode
+ *
+ * 所以页面要管住三件事：
+ *   - 没发码 / 没拿到 token → 不许提交
+ *   - 邮箱改了就作废之前那个 token（否则 token 和邮箱不是一对）
+ *   - 60 秒倒计时防止连点（文档明说测试太频繁会被风控拉黑）
  */
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { Iphone, Lock, Message, User } from '@element-plus/icons-vue'
+import { Iphone, Key, Lock, Message, User } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
-import { checkAccountAvailableApi, registerApi } from '@/api/auth'
+import { checkAccountAvailableApi, registerApi, sendVerifyCodeApi } from '@/api/auth'
 
 defineOptions({ name: 'RegisterView' })
 
@@ -97,8 +122,73 @@ const form = reactive({
   Email: '',
   Password: '',
   ConfirmPassword: '',
-  Tele: ''
+  Tele: '',
+  VerifyCode: ''
 })
+
+/* ---------------- 验证码 ---------------- */
+const sending = ref(false)
+/** 倒计时秒数（>0 时发送按钮禁用） */
+const codeCooldown = ref(0)
+/** 发码拿到的一次性 token；提交时放进 Authorization 头 */
+const verifyToken = ref('')
+let cooldownTimer: number | undefined
+
+function startCooldown(seconds = 60) {
+  codeCooldown.value = seconds
+  if (cooldownTimer) window.clearInterval(cooldownTimer)
+  cooldownTimer = window.setInterval(() => {
+    codeCooldown.value -= 1
+    if (codeCooldown.value <= 0 && cooldownTimer) {
+      window.clearInterval(cooldownTimer)
+      cooldownTimer = undefined
+    }
+  }, 1000)
+}
+
+onBeforeUnmount(() => {
+  if (cooldownTimer) window.clearInterval(cooldownTimer)
+})
+
+/**
+ * 邮箱一改，之前拿到的 token 就作废。
+ * 否则会出现"用 A 邮箱拿的 token 去给 B 邮箱注册"—— 后端会拒，但不如前端先清掉。
+ */
+watch(
+  () => form.Email,
+  (now, before) => {
+    if (!verifyToken.value) return
+    if ((now || '').trim().toLowerCase() !== (before || '').trim().toLowerCase()) {
+      verifyToken.value = ''
+      form.VerifyCode = ''
+    }
+  }
+)
+
+async function sendCode() {
+  const email = form.Email.trim()
+  if (!email) {
+    ElMessage.warning(t('authPage.emailRequired'))
+    return
+  }
+  // 先过一遍邮箱格式校验，别白跑一次接口（也免得频繁请求触发风控）
+  const emailRule = rules.value.Email as Array<{ type?: string }>
+  if (emailRule?.some((r) => r.type === 'email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    ElMessage.warning(t('authPage.emailInvalid'))
+    return
+  }
+
+  sending.value = true
+  try {
+    verifyToken.value = await sendVerifyCodeApi(email, 'Register')
+    ElMessage.success(t('authPage.codeSent'))
+    startCooldown(60)
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || t('authPage.codeSendFailed'))
+  } finally {
+    sending.value = false
+  }
+}
 
 const rules = computed<FormRules>(() => ({
   UserName: [{ required: true, message: t('authPage.accountRequired'), trigger: 'blur' }],
@@ -119,6 +209,10 @@ const rules = computed<FormRules>(() => ({
       },
       trigger: 'blur'
     }
+  ],
+  VerifyCode: [
+    { required: true, message: t('authPage.verifyCodeRequired'), trigger: 'blur' },
+    { len: 6, message: t('authPage.verifyCodeLength'), trigger: 'blur' }
   ]
 }))
 
@@ -145,15 +239,24 @@ async function handleSubmit() {
     ElMessage.warning(t('authPage.accountReserved'))
     return
   }
+  // 必须先拿到发码返回的 token，否则后端一定拒（而且这是后端的硬要求）
+  if (!verifyToken.value) {
+    ElMessage.warning(t('authPage.sendCodeFirst'))
+    return
+  }
 
   loading.value = true
   try {
-    await registerApi({
-      UserName: form.UserName.trim(),
-      Email: form.Email.trim(),
-      Password: form.Password,
-      Tele: form.Tele.trim()
-    })
+    await registerApi(
+      {
+        UserName: form.UserName.trim(),
+        Email: form.Email.trim(),
+        Password: form.Password,
+        Tele: form.Tele.trim(),
+        VerifyCode: form.VerifyCode.trim()
+      },
+      verifyToken.value
+    )
     ElMessage.success(t('authPage.registerSuccess'))
     router.replace('/login')
   } catch (e) {
@@ -204,6 +307,21 @@ async function handleSubmit() {
   font-size: 12px;
   text-align: center;
   color: $text-secondary;
+}
+
+.code-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+
+  :deep(.el-input) {
+    flex: 1;
+  }
+
+  :deep(.el-button) {
+    flex: none;
+    width: 104px;
+  }
 }
 
 .auth-btn {

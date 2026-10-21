@@ -18,8 +18,12 @@ import { useMenuStore } from './menu'
  */
 
 interface UserState {
-  token: string
-  /** 后端下发的用户级 token（真正拿去认身份的凭据） */
+  /**
+   * 后端下发的用户级 token —— **唯一凭据**。
+   *
+   * 曾经还有一个前端自造的 `cmp-{id}-{ts}` 假 token 只用来判断"有没有登录"，
+   * 2026-10-20 删掉了：真 token 已经在手，再留一个长得像凭据的字符串只会误导排查。
+   */
   userToken: string
   userInfo: UserInfo | null
 }
@@ -30,14 +34,13 @@ const USER_INFO_KEY = 'userInfo'
 export const useUserStore = defineStore('user', {
   state: (): UserState => ({
     // 初始值直接从 localStorage 恢复，这样刷新页面不会先闪到登录页
-    token: storage.get<string>(TOKEN_KEY, '') || '',
     userToken: storage.get<string>(USER_TOKEN_KEY, '') || '',
     userInfo: storage.get<UserInfo | null>(USER_INFO_KEY, null) || null
   }),
 
   getters: {
-    /** 是否已登录（只判断"有没有 token"，token 是否有效由后端定） */
-    isLogin: (state) => Boolean(state.token),
+    /** 是否已登录（只判断"有没有真 token"，token 是否有效由后端定） */
+    isLogin: (state) => Boolean(state.userToken),
 
     /** 是否拿到了后端下发的用户级 token（排查"为什么还被当成别人"先看这个） */
     hasUserToken: (state) => Boolean(state.userToken),
@@ -70,17 +73,12 @@ export const useUserStore = defineStore('user', {
   },
 
   actions: {
-    /** 登录：拿 token → 立刻拉一次用户信息（顺带把权限拿到手） */
+    /** 登录：拿真 token → 同时拿到用户信息（含 Role） */
     async login(params: LoginParams) {
-      const { token, info, userToken } = await loginApi(params)
-      this.token = token
-      storage.set(TOKEN_KEY, token)
+      const { info, userToken } = await loginApi(params)
 
-      // 后端下发的用户级 token：有就存，之后 request 拦截器会自动带上
-      if (userToken) {
-        this.userToken = userToken
-        storage.set(USER_TOKEN_KEY, userToken)
-      }
+      this.userToken = userToken
+      storage.set(USER_TOKEN_KEY, userToken)
 
       if (info) {
         // 真实模式：/userLogin 一次就把用户信息（含 Role）带回来了，不用再查
@@ -89,13 +87,13 @@ export const useUserStore = defineStore('user', {
       } else {
         await this.fetchUserInfo()
       }
-      return token
+      return userToken
     },
 
     /** 拉取用户信息（守卫在刷新后也会调它） */
     async fetchUserInfo() {
-      if (!this.token) return null
-      const info = await getUserInfoApi(this.token)
+      if (!this.userToken) return null
+      const info = await getUserInfoApi()
       this.userInfo = info
       storage.set(USER_INFO_KEY, info)
       return info
@@ -118,12 +116,12 @@ export const useUserStore = defineStore('user', {
 
     /** 清空本地登录态（401 拦截器也会调它） */
     reset() {
-      this.token = ''
       this.userToken = ''
       this.userInfo = null
-      storage.remove(TOKEN_KEY)
       storage.remove(USER_TOKEN_KEY)
       storage.remove(USER_INFO_KEY)
+      // 顺手清掉历史遗留的假 token（旧版本写过 `cmp-{id}-{ts}`），避免在 devtools 里误以为是凭据
+      storage.remove(TOKEN_KEY)
     }
   }
 })

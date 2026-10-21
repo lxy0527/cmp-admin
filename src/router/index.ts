@@ -187,21 +187,34 @@ router.beforeEach(async (to) => {
   return true
 })
 
-/** 兜底：动态 import 失败（发版后旧 chunk 失效）时刷新一次，避免白屏 */
-router.onError((error, to) => {
+/**
+ * 兜底：动态 import 失败（发版后旧 chunk 失效）时刷新一次，避免白屏。
+ *
+ * 注意这里存的是**时间戳**而不是路径：只存路径的话，一旦刷新后导航仍然失败
+ * （afterEach 没跑到），标记就永远清不掉，之后每次进站都直接白屏、再也恢复不了。
+ * 加个有效期，过期的标记视为无效，保证最坏情况也只是「多刷几次」而不是「永久白屏」。
+ */
+const CHUNK_RETRY_KEY = 'cmp-admin:chunk-retried'
+const CHUNK_RETRY_TTL = 15_000
+
+router.onError((error) => {
   const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed/i.test(
     error.message
   )
-  if (isChunkError && !sessionStorage.getItem('cmp-admin:chunk-retried')) {
-    sessionStorage.setItem('cmp-admin:chunk-retried', String(to.fullPath))
-    window.location.reload()
-  }
+  if (!isChunkError) return
+
+  const last = Number(sessionStorage.getItem(CHUNK_RETRY_KEY) || 0)
+  const fresh = last > 0 && Date.now() - last < CHUNK_RETRY_TTL
+  if (fresh) return
+
+  sessionStorage.setItem(CHUNK_RETRY_KEY, String(Date.now()))
+  window.location.reload()
 })
 
-/** 用完就清掉重试标记，避免下次真的出错时被跳过 */
+/** 导航成功就清掉标记，避免下次真的出错时被跳过 */
 router.afterEach(() => {
-  if (sessionStorage.getItem('cmp-admin:chunk-retried')) {
-    sessionStorage.removeItem('cmp-admin:chunk-retried')
+  if (sessionStorage.getItem(CHUNK_RETRY_KEY)) {
+    sessionStorage.removeItem(CHUNK_RETRY_KEY)
   }
 })
 

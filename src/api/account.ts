@@ -17,6 +17,8 @@
  * 等新接口给了只需要替换本文件。
  */
 import { request } from './request'
+import { toPaged, slicePage } from './paging'
+import type { PagedData } from '@/composables/useTableList'
 import {
   DEMO_MODE,
   demoAccountCreate,
@@ -151,4 +153,33 @@ export async function updateAccountSetting(payload: AccountSettingPayload): Prom
       Status: payload.Status
     }
   })
+}
+
+/* ============================================================
+ * 服务端分页版（2026-10-20 后端新增）
+ * ============================================================
+ * ⚠️ 后端 `page` 从 **0** 开始，而这里的 `page` 从 **1** 开始（跟 el-pagination 一致），
+ *    所以传之前统一 -1。
+ * 保留原来的非分页函数：档案/账号下拉框还要用全量列表。
+ */
+export async function getAccountPage(params: {
+  page: number
+  pageSize: number
+  SearchTitle?: string
+}): Promise<PagedData<AccountRow>> {
+  const keyword = (params.SearchTitle || '').trim()
+  if (DEMO_MODE) {
+    const rows = await demoAccountList(keyword)
+    return slicePage(rows, params.page, params.pageSize)
+  }
+  const res = await request<AccountRow[]>({
+    url: '/user',
+    method: 'post',
+    data: {
+      page: Math.max(0, params.page - 1),
+      pagesize: params.pageSize,
+      ...(keyword ? { SearchTitle: keyword } : {})
+    }
+  })
+  return toPaged(res)
 }

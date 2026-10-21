@@ -40,11 +40,11 @@
       </div>
 
       <div class="filter-item">
+        <span class="filter-label">{{ t('permitWork.filters.dateRange') }}</span>
         <el-date-picker
           v-model="query.dateRange"
           type="daterange"
           value-format="YYYY-MM-DD"
-          :range-separator="t('permitWork.filters.dateRange')"
           :start-placeholder="t('common.pleaseSelect')"
           :end-placeholder="t('common.pleaseSelect')"
           unlink-panels
@@ -67,21 +67,23 @@
       </div>
 
       <el-table v-loading="loading" :data="rows" stripe height="100%" class="permit-table">
-        <el-table-column type="index" label="#" width="90" align="center" />
-        <el-table-column prop="permitId" :label="t('permitWork.columns.permitId')" min-width="140" align="center" />
+        <el-table-column type="index" label="#" width="60" align="center" />
+        <el-table-column prop="permitId" :label="t('permitWork.columns.permitId')" min-width="90" align="center" />
         <el-table-column
           prop="workPermitNo"
           :label="t('permitWork.columns.workPermitNo')"
-          min-width="150"
+          min-width="140"
           align="center"
+          show-overflow-tooltip
         />
         <el-table-column
           prop="permitType"
           :label="t('permitWork.columns.permitType')"
-          min-width="130"
+          min-width="120"
           align="center"
+          show-overflow-tooltip
         />
-        <el-table-column :label="t('permitWork.columns.status')" min-width="110" align="center">
+        <el-table-column :label="t('permitWork.columns.status')" min-width="100" align="center">
           <template #default="{ row }">
             <span class="status-tag" :class="statusClass(row.status)">{{ row.status }}</span>
           </template>
@@ -89,22 +91,29 @@
         <el-table-column
           prop="modelContent"
           :label="t('permitWork.columns.modelContent')"
-          min-width="130"
+          min-width="120"
           align="center"
+          show-overflow-tooltip
         />
         <el-table-column
           prop="applicant"
           :label="t('permitWork.columns.applicant')"
-          min-width="140"
+          min-width="150"
           align="center"
+          show-overflow-tooltip
         />
         <el-table-column
-          prop="applyDate"
           :label="t('permitWork.columns.applyDate')"
-          min-width="170"
+          min-width="138"
           align="center"
-        />
-        <el-table-column :label="t('common.operation')" width="110" align="center" fixed="right">
+        >
+          <template #default="{ row }">
+            <el-tooltip :content="row.applyDate" placement="top">
+              <span>{{ shortTime(row.applyDate) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column :label="t('common.operation')" width="90" align="center" fixed="right">
           <template #default>
             <el-button link type="primary" size="small">{{ t('common.detail') }}</el-button>
           </template>
@@ -154,6 +163,12 @@ const query = reactive<PermitWorkQuery>({
   pageNum: 1,
   pageSize: 20
 })
+
+/** 列表里省掉秒，完整时间走 tooltip（宽度不够时先省次要信息，别让单元格折行） */
+function shortTime(v?: string) {
+  if (!v) return '--'
+  return v.length > 16 ? v.slice(0, 16) : v
+}
 
 function statusClass(status: string) {
   switch (status) {
@@ -241,6 +256,8 @@ onMounted(fetchData)
 
 .filter-label {
   flex: none;
+  /* 定宽：四个标签字数不同（4~6 字），不定宽会导致右边控件起点参差不齐 */
+  min-width: 78px;
   font-size: 12px;
   color: $text-regular;
   white-space: nowrap;

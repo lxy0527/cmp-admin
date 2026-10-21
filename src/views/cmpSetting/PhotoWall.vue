@@ -95,6 +95,7 @@ import {
   createArchive,
   deleteArchive,
   getArchiveList,
+  getArchivePage,
   updateArchive,
   type PhotoArchiveRow
 } from '@/api/album'
@@ -112,8 +113,11 @@ const keyword = ref('')
 
 const ARCHIVE_HINT = computed(() => t('photoWall.hint'))
 
+// 服务端分页（后端 2026-10-20 新增）
 const table = useTableList<PhotoArchiveRow>({
-  fetcher: () => getArchiveList(keyword.value)
+  mode: 'server',
+  fetchPage: ({ page, pageSize }) =>
+    getArchivePage({ page, pageSize, SearchTitle: keyword.value })
 })
 
 async function handleQuery() {

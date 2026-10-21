@@ -164,6 +164,7 @@ import {
   createAccount,
   getAccountDetail,
   getAccountList,
+  getAccountPage,
   updateAccountProfile,
   updateAccountSetting,
   type AccountRow
@@ -177,8 +178,11 @@ const { t } = useI18n()
 
 const keyword = ref('')
 
+// 服务端分页（后端 2026-10-20 新增）：翻页只取当前页，搜索走接口
 const table = useTableList<AccountRow>({
-  fetcher: () => getAccountList(keyword.value)
+  mode: 'server',
+  fetchPage: ({ page, pageSize }) =>
+    getAccountPage({ page, pageSize, SearchTitle: keyword.value })
 })
 
 /** 搜索：重新请求 + 回第 1 页 */

@@ -16,6 +16,8 @@
  *   4. 没有"移动资源到别的档案"接口
  */
 import { request } from './request'
+import { toPaged, slicePage } from './paging'
+import type { PagedData } from '@/composables/useTableList'
 import { getSessionUserId, isAdmin } from '@/utils/session'
 import {
   DEMO_MODE,
@@ -192,4 +194,85 @@ export function extOfUrl(url: string): string {
   const clean = url.split('?')[0].split('#')[0]
   const m = clean.match(/\.([a-zA-Z0-9]+)$/)
   return m ? m[1].toLowerCase() : ''
+}
+
+/* ============================================================
+ * 服务端分页版（2026-10-20 后端新增）
+ * ============================================================
+ * ⚠️ 后端 `page` 从 **0** 开始；这里的 `page` 从 **1** 开始，传之前统一 -1。
+ * 档案下拉框仍用 getArchiveList()（要全量），只有列表表格走分页版。
+ */
+export async function getArchivePage(params: {
+  page: number
+  pageSize: number
+  SearchTitle?: string
+}): Promise<PagedData<PhotoArchiveRow>> {
+  if (!isAdmin()) {
+    return getArchiveByUserPage({ ...params, UserId: getSessionUserId() })
+  }
+  const keyword = (params.SearchTitle || '').trim()
+  if (DEMO_MODE) {
+    const rows = await demoArchiveList(keyword)
+    return slicePage(rows, params.page, params.pageSize)
+  }
+  const res = await request<PhotoArchiveRow[]>({
+    url: '/album',
+    method: 'post',
+    data: {
+      page: Math.max(0, params.page - 1),
+      pagesize: params.pageSize,
+      ...(keyword ? { SearchTitle: keyword } : {})
+    }
+  })
+  return toPaged(res)
+}
+
+/** 普通账号分页查询自己的档案：POST /api/albumByUser（需要 token） */
+export async function getArchiveByUserPage(params: {
+  page: number
+  pageSize: number
+  SearchTitle?: string
+  UserId: number
+}): Promise<PagedData<PhotoArchiveRow>> {
+  const keyword = (params.SearchTitle || '').trim()
+  if (DEMO_MODE) {
+    const rows = await demoArchiveList(keyword)
+    return slicePage(rows, params.page, params.pageSize)
+  }
+  const res = await request<PhotoArchiveRow[]>({
+    url: '/albumByUser',
+    method: 'post',
+    data: {
+      UserId: params.UserId,
+      page: Math.max(0, params.page - 1),
+      pagesize: params.pageSize,
+      ...(keyword ? { SearchTitle: keyword } : {})
+    }
+  })
+  return toPaged(res)
+}
+
+/** 某个档案下的图片（分页）：POST /api/albumImage */
+export async function getResourcePage(params: {
+  AlbumId: number
+  page: number
+  pageSize: number
+  SearchTitle?: string
+}): Promise<PagedData<PhotoResourceRow>> {
+  const keyword = (params.SearchTitle || '').trim()
+  if (DEMO_MODE) {
+    const rows = await demoResourceList(params.AlbumId, keyword)
+    return slicePage(rows, params.page, params.pageSize)
+  }
+  const res = await request<PhotoResourceRow[]>({
+    url: '/albumImage',
+    method: 'post',
+    data: {
+      AlbumId: params.AlbumId,
+      page: Math.max(0, params.page - 1),
+      pagesize: params.pageSize,
+      ...(keyword ? { SearchTitle: keyword } : {})
+    }
+  })
+  return toPaged(res)
 }

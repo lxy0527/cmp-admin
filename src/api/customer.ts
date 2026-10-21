@@ -21,6 +21,8 @@
  *   页面里不做假数据，等后端确认要不要补。
  */
 import { request } from './request'
+import { toPaged, slicePage } from './paging'
+import type { PagedData } from '@/composables/useTableList'
 import { getSessionUserId, isAdmin } from '@/utils/session'
 import {
   DEMO_MODE,
@@ -262,4 +264,61 @@ export async function setCustomerUserStatus(ids: number[], Status: number): Prom
 export async function deleteCustomerUsers(ids: number[]): Promise<void> {
   if (DEMO_MODE) return demoCustomerUserDelete(ids)
   await request({ url: '/customerUserDeletes', method: 'post', data: { IdArr: ids.join(',') } })
+}
+
+/* ============================================================
+ * 服务端分页版（2026-10-20 后端新增）
+ * ============================================================
+ * ⚠️ 后端 `page` 从 **0** 开始；这里的 `page` 从 **1** 开始（跟 el-pagination 一致），
+ *    所以传之前统一 -1。
+ * 文档要求按角色分流：管理员走 /customer 看全部，普通账号走 /customerByUser。
+ */
+export async function getCustomerPage(params: {
+  page: number
+  pageSize: number
+  SearchTitle?: string
+}): Promise<PagedData<CustomerRow>> {
+  if (!isAdmin()) {
+    return getCustomerByUserPage({ ...params, UserId: getSessionUserId() })
+  }
+  const keyword = (params.SearchTitle || '').trim()
+  if (DEMO_MODE) {
+    const rows = await demoCustomerList(keyword)
+    return slicePage(rows, params.page, params.pageSize)
+  }
+  const res = await request<CustomerRow[]>({
+    url: '/customer',
+    method: 'post',
+    data: {
+      page: Math.max(0, params.page - 1),
+      pagesize: params.pageSize,
+      ...(keyword ? { SearchTitle: keyword } : {})
+    }
+  })
+  return toPaged(res)
+}
+
+/** 普通账号分页查询自己关联的客户：POST /api/customerByUser（需要 token） */
+export async function getCustomerByUserPage(params: {
+  page: number
+  pageSize: number
+  SearchTitle?: string
+  UserId: number
+}): Promise<PagedData<CustomerRow>> {
+  const keyword = (params.SearchTitle || '').trim()
+  if (DEMO_MODE) {
+    const rows = await demoCustomerList(keyword)
+    return slicePage(rows, params.page, params.pageSize)
+  }
+  const res = await request<CustomerRow[]>({
+    url: '/customerByUser',
+    method: 'post',
+    data: {
+      UserId: params.UserId,
+      page: Math.max(0, params.page - 1),
+      pagesize: params.pageSize,
+      ...(keyword ? { SearchTitle: keyword } : {})
+    }
+  })
+  return toPaged(res)
 }

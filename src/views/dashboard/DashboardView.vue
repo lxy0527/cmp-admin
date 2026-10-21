@@ -3,15 +3,49 @@
     <div class="dash-grid">
       <!-- ---------------- 左：统计卡 ---------------- -->
       <div class="stat-col">
-        <div v-for="(card, i) in cards" :key="card.key" class="stat-card" :class="`stat-card--${i}`">
-          <span class="stat-icon">
-            <el-icon><component :is="iconOf(i)" /></el-icon>
-          </span>
-          <span class="stat-info">
-            <span class="stat-label">{{ cardLabel(card) }}</span>
-            <span class="stat-value">{{ card.value }}</span>
-          </span>
-        </div>
+        <template v-if="data">
+          <div v-for="(card, i) in cards" :key="card.key" class="stat-card" :class="`stat-card--${i}`">
+            <span class="stat-icon">
+              <el-icon><component :is="iconOf(i)" /></el-icon>
+            </span>
+            <span class="stat-info">
+              <span class="stat-label">{{ cardLabel(card) }}</span>
+              <span class="stat-value">{{ card.value }}</span>
+            </span>
+          </div>
+        </template>
+
+        <template v-else-if="loadFailed">
+          <div v-for="i in 4" :key="`err-${i}`" class="stat-card" :class="`stat-card--${i - 1}`">
+            <span class="stat-info">
+              <span class="stat-label">—</span>
+              <span class="stat-value">—</span>
+            </span>
+          </div>
+        </template>
+
+        <template v-else>
+          <!--
+            首屏骨架
+            ------------------------------------------------------------
+            数据是异步来的，之前这里会先渲染出"4 个卡片一个都没有 + 环形 0% + 图例空"
+            的空壳，约 300ms 后才填上 —— 看着像页面坏了。
+            用同尺寸骨架占位，既不空白、也不会数据到位时跳一下。
+          -->
+          <div v-for="i in 4" :key="`sk-${i}`" class="stat-card" :class="`stat-card--${i - 1}`">
+            <el-skeleton animated>
+              <template #template>
+                <div class="sk-row">
+                  <el-skeleton-item variant="image" class="sk-icon" />
+                  <div class="sk-lines">
+                    <el-skeleton-item variant="text" style="width: 68px; height: 12px" />
+                    <el-skeleton-item variant="text" style="width: 46px; height: 24px; margin-top: 8px" />
+                  </div>
+                </div>
+              </template>
+            </el-skeleton>
+          </div>
+        </template>
       </div>
 
       <!-- ---------------- 右：系统监控概览 ---------------- -->
@@ -21,7 +55,7 @@
             <div class="card-title">{{ t('dashboard.title') }}</div>
 
             <!-- 警报实时推送状态（WebSocket） -->
-            <div class="live-pill" :class="`is-${socketStatus}`" :title="liveHint">
+            <div v-if="data" class="live-pill" :class="`is-${socketStatus}`" :title="liveHint">
               <span class="live-dot" />
               <span class="live-text">{{ liveLabel }}</span>
               <span v-if="received > 0" class="live-count">
@@ -31,14 +65,43 @@
           </div>
 
           <el-alert
-            v-if="socketStatus === 'disabled'"
+            v-if="data && socketStatus === 'disabled'"
             type="info"
             :closable="false"
             class="live-alert"
             :title="t('dashboard.live.disabledHint')"
           />
 
-          <div class="monitor-body">
+          <!-- 加载失败：给一条出路，别让人对着骨架屏干等 -->
+          <div v-if="loadFailed" class="monitor-body">
+            <div class="load-error">
+              <span class="load-error__text">{{ t('dashboard.loadFailed') }}</span>
+              <el-button size="small" type="primary" plain @click="refreshStats">
+                {{ t('common.retry') }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 首屏骨架：数据没到之前不渲染空环 + 空图例（同尺寸，数据到位时不跳动） -->
+          <div v-else-if="!data" class="monitor-body">
+            <el-skeleton animated>
+              <template #template>
+                <div class="sk-monitor">
+                  <el-skeleton-item variant="circle" class="sk-donut" />
+                  <div class="sk-legend">
+                    <el-skeleton-item
+                      v-for="i in 3"
+                      :key="i"
+                      variant="text"
+                      style="width: 150px; height: 16px"
+                    />
+                  </div>
+                </div>
+              </template>
+            </el-skeleton>
+          </div>
+
+          <div v-else class="monitor-body">
             <DonutChart
               :value="data?.onlineRate || 0"
               :size="320"
@@ -101,6 +164,8 @@ const { t } = useI18n()
 
 const data = ref<DashboardData>()
 const cards = ref<StatCard[]>([])
+/** 首次加载失败（用于把骨架屏换成"加载失败 + 重试"，避免无限骨架） */
+const loadFailed = ref(false)
 
 const ICONS = [Connection, Warning, Iphone, OfficeBuilding]
 function iconOf(i: number) {
@@ -149,8 +214,11 @@ async function refreshStats() {
     const fresh = await getDashboardApi()
     data.value = fresh
     cards.value = fresh.cards
+    loadFailed.value = false
   } catch {
-    // 刷新失败保留旧数据，等下一次推送再刷
+    // 已有数据：刷新失败就保留旧数据，等下一次推送再刷
+    // 首次加载就失败：不能一直卡在骨架屏上，转成"加载失败 + 重试"
+    if (!data.value) loadFailed.value = true
   }
 }
 
@@ -486,4 +554,54 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: $text-main;
 }
+
+/* ---------------- 首屏骨架 ---------------- */
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.sk-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.sk-lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.sk-monitor {
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+
+.sk-donut {
+  width: 320px;
+  height: 320px;
+}
+
+.sk-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.load-error__text {
+  font-size: 13px;
+  color: $text-secondary;
+}
+
 </style>
