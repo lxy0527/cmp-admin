@@ -9,7 +9,7 @@
  * 真实接口就绪后：整个文件可以删掉（api/permitWork.ts 里 USE_MOCK 分支一起删）。
  */
 import type { PageQuery, PageResult } from '@/types/api'
-import { delay, ok } from './helper'
+import { delay } from './helper'
 
 export interface PermitWorkRow {
   id: number
@@ -140,12 +140,6 @@ export async function mockGetPermitWorkPage(
     pageNum: params.pageNum,
     pageSize: params.pageSize
   }
-}
-
-/** 导出（假实现，只延迟一下表示"提交成功"） */
-export async function mockExportPermitWork() {
-  await delay(500)
-  return ok('true')
 }
 
 /** 下拉选项的假数据（真实场景应来自字典接口） */

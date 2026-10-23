@@ -23,7 +23,7 @@
 import { request } from './request'
 import { toPaged, slicePage } from './paging'
 import type { PagedData } from '@/composables/useTableList'
-import { getSessionUserId, isAdmin } from '@/utils/session'
+import { isAdmin } from '@/utils/session'
 import {
   DEMO_MODE,
   demoCustomerCreate,
@@ -85,7 +85,7 @@ export interface CustomerEditPayload extends CustomerCreatePayload {
  * 分流放在 api 层，页面不用感知。
  */
 export async function getCustomerList(SearchTitle = ''): Promise<CustomerRow[]> {
-  if (!isAdmin()) return getCustomerListByUser(getSessionUserId(), SearchTitle)
+  if (!isAdmin()) return getCustomerListByUser(SearchTitle)
   if (DEMO_MODE) return demoCustomerList(SearchTitle)
   const { data } = await request<CustomerRow[]>({
     url: '/customer',
@@ -95,16 +95,20 @@ export async function getCustomerList(SearchTitle = ''): Promise<CustomerRow[]> 
   return Array.isArray(data) ? data : []
 }
 
-/** 普通账号查询关联客户：POST /api/customerByUser（UserId 必传） */
-export async function getCustomerListByUser(
-  UserId: number,
-  SearchTitle = ''
-): Promise<CustomerRow[]> {
+/**
+ * 普通账号查询关联客户：POST /api/customerByUser
+ *
+ * ⚠️ 不再传 `UserId`。2026-10-21 后端明确：「byUser 是用 token 验证，UserId 不传，
+ * 当然你传不传都没关系，只是用不到」。所以身份完全由请求头 `Authorization: Bearer <token>`
+ * 决定，前端传任何 UserId 都不会生效（也正因如此，越权问题已被后端修掉）。
+ * 文档里仍写着"必须传"，但那是旧文档的口径，以后端回复为准。
+ */
+export async function getCustomerListByUser(SearchTitle = ''): Promise<CustomerRow[]> {
   if (DEMO_MODE) return demoCustomerList(SearchTitle)
   const { data } = await request<CustomerRow[]>({
     url: '/customerByUser',
     method: 'post',
-    data: { UserId, ...(SearchTitle ? { SearchTitle } : {}) }
+    data: SearchTitle ? { SearchTitle } : {}
   })
   return Array.isArray(data) ? data : []
 }
@@ -279,7 +283,7 @@ export async function getCustomerPage(params: {
   SearchTitle?: string
 }): Promise<PagedData<CustomerRow>> {
   if (!isAdmin()) {
-    return getCustomerByUserPage({ ...params, UserId: getSessionUserId() })
+    return getCustomerByUserPage(params)
   }
   const keyword = (params.SearchTitle || '').trim()
   if (DEMO_MODE) {
@@ -298,12 +302,11 @@ export async function getCustomerPage(params: {
   return toPaged(res)
 }
 
-/** 普通账号分页查询自己关联的客户：POST /api/customerByUser（需要 token） */
+/** 普通账号分页查询自己关联的客户：POST /api/customerByUser（身份由 token 决定，见上方注释） */
 export async function getCustomerByUserPage(params: {
   page: number
   pageSize: number
   SearchTitle?: string
-  UserId: number
 }): Promise<PagedData<CustomerRow>> {
   const keyword = (params.SearchTitle || '').trim()
   if (DEMO_MODE) {
@@ -314,7 +317,6 @@ export async function getCustomerByUserPage(params: {
     url: '/customerByUser',
     method: 'post',
     data: {
-      UserId: params.UserId,
       page: Math.max(0, params.page - 1),
       pagesize: params.pageSize,
       ...(keyword ? { SearchTitle: keyword } : {})

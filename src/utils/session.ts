@@ -27,7 +27,13 @@ function readUser(): Partial<UserInfo> | null {
   }
 }
 
-/** 当前登录账号 Id（普通账号查询必须带 UserId） */
+/**
+ * 当前登录账号 Id
+ *
+ * ⚠️ 2026-10-21 后端明确：「byUser 是用 token 验证，UserId 不传……你传不传都没关系，
+ *    只是用不到」。所以**查询类接口已不再需要它**（身份完全由 `Authorization` 头决定）。
+ *    现在只剩少数"创建类"接口按文档要求显式传 UserId，例如 `createArchive(UserId, Name)`。
+ */
 export function getSessionUserId(): number {
   return Number(readUser()?.userId ?? 0) || 0
 }

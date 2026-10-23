@@ -178,12 +178,21 @@ export default {
     submitChangePwd: '确认修改',
     verifyCodeLength: '验证码为 6 位',
     changePwdSuccess: '密码已修改，请用新密码登录',
-    changePwdFailed: '修改失败',    accountReserved: '该账户为系统保留或已被占用，请换一个',
+    changePwdFailed: '修改失败',
+    accountReserved: '该账户为系统保留名称，不可使用',
+  accountTaken: '该账户已被注册，请更换其它账户',
+    emailTaken: '该邮箱已被注册，请更换其它邮箱',
+    emailNotRegistered: '该邮箱尚未注册，请确认后重试',
+    agreementAgree: '我已阅读并同意',
+    agreementAnd: '与',
+    agreementTerms: '《用户协议》',
+    agreementPrivacy: '《隐私政策》',
+    agreementRequired: '请先阅读并勾选同意《用户协议》与《隐私政策》',
+    agreementPlaceholder:
+      '（占位内容）本协议的正式条款尚未由客户／法务提供。前端已把入口、勾选校验与弹窗全部做好，正式文本到位后只需替换 src/config/agreement.ts 即可，无需改动页面。',
+    agreementVersion: '版本',
     registerSuccess: '注册成功，请使用新账号登录',
-    registerFailed: '注册失败',
-    forgotNoApi: '后端尚未提供「找回密码」接口（接口文档中没有此项），本页仅为界面预留，不会真的发送邮件。',
-    forgotHint: '如需重置密码，请联系管理员在后台处理。',
-    forgotSubmitted: '当前环境无法自助找回，请联系管理员。'
+    registerFailed: '注册失败'
   },
 
   login: {
@@ -195,7 +204,10 @@ export default {
     usernameRequired: '请输入用户名',
     passwordRequired: '请输入密码',
     failed: '登录失败',
-    demoHint: '演示账号：admin / 123456'
+    demoHint: 'admin / 123456（管理员）・viewer / 123456（普通账号）',
+    realTestTitle: '测试账号 · 连真实后端',
+    demoTitle: '演示模式 · 内置账号',
+    demoNote: '真实后端账号（如 user01）需在公司内网环境登录，本站为内置演示数据。'
   },
 
   /** 顶栏信息条（目前是静态展示，接接口后值再换） */
@@ -246,7 +258,6 @@ export default {
       company: '许可批准申请',
       dateRange: '申请日期'
     },
-    exportPlaceholder: '导出任务已提交（占位，等接口就绪后接真实导出）',
     mockNote: '此模块后端尚未提供接口（后端文档问题 2 已确认），目前为演示数据。'
   },
 
@@ -481,7 +492,9 @@ export default {
     enableSuccess: '启用成功',
     disableSuccess: '禁用成功',
     passwordMismatch: '两次输入的密码不一致',
-    passwordNoSpace: '密码不能包含首尾空格'
+    passwordNoSpace: '密码不能包含首尾空格',
+    createNote: '管理员新增账号不需要邮箱验证码；手机号等资料请创建后在「编辑」里补填。',
+    permissionDenied: '当前账号没有此操作权限（后端已拒绝）'
   },
 
   photoWall: {
@@ -603,5 +616,14 @@ export default {
     sourceNote: '地址清单暂为静态配置（旧站取清单的接口在本后端不存在，实测 404），后端提供新接口后改为动态拉取。',
     legacyNote:
       '完整版《CMP 开放数据接收 API 接口文档 v1.6.0》（含 6 个告警推送 + 配置同步 + 统计同步）目前只在旧站，需后端提供。'
+  },
+  forbidden: {
+    code: '403',
+    title: '当前账号没有此页面的权限',
+    hint: '如果这个页面是你工作需要的，请联系管理员为账号开通对应权限。',
+    reloginHint: '如果刚才是用其他账号登录的，可以切换账号重新登录。',
+    backHome: '返回首页',
+    backPrev: '返回上一页',
+    relogin: '切换账号重新登录'
   }
 }

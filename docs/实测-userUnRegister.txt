@@ -1,0 +1,29 @@
+实测时间: 2026-10-21 12:11:47
+路径: 浏览器/前端 => http://localhost:5173/api/userUnRegister => (vite 代理注入 ApiId/ApiKey) => http://192.168.77.15:82/api/userUnRegister
+说明: 密钥由代理在服务端注入，不出现在本输出里
+==============================================================================
+
+POST /api/userUnRegister
+请求体   : {"UserName":"user01"}
+HTTP     : 200  Content-Type: application/json; charset=utf-8
+响应原文 : {"code":"SUCCESS","message":"OK","data":{"Valid":"Yes"}}
+
+POST /api/userUnRegister
+请求体   : {"UserName":"user01"}
+HTTP     : 200  Content-Type: application/json; charset=utf-8
+响应原文 : {"code":"SUCCESS","message":"OK","data":{"Valid":"Yes"}}
+
+POST /api/userUnRegister
+请求体   : {"UserName":"admin"}
+HTTP     : 200  Content-Type: application/json; charset=utf-8
+响应原文 : {"code":"SUCCESS","message":"OK","data":{"Valid":"No"}}
+
+POST /api/userUnRegister
+请求体   : {"UserName":"zzz_never_used_20261021"}
+HTTP     : 200  Content-Type: application/json; charset=utf-8
+响应原文 : {"code":"SUCCESS","message":"OK","data":{"Valid":"Yes"}}
+
+POST /api/userUnRegister
+请求体   : {"UserName":"user02"}
+HTTP     : 200  Content-Type: application/json; charset=utf-8
+响应原文 : {"code":"SUCCESS","message":"OK","data":{"Valid":"Yes"}}

@@ -8,12 +8,13 @@
       <p class="auth-sub">{{ t('authPage.changePwdSubtitle') }}</p>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent>
-        <el-form-item label="Email" prop="Email">
+        <el-form-item label="Email" prop="Email" :error="emailError">
           <el-input
             v-model="form.Email"
             size="large"
             placeholder="name@example.com"
             :prefix-icon="Message"
+            @blur="onEmailBlur"
           />
         </el-form-item>
 
@@ -88,7 +89,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { Key, Lock, Message } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
-import { changePasswordApi, sendVerifyCodeApi } from '@/api/auth'
+import { changePasswordApi, checkEmailAvailableApi, sendVerifyCodeApi } from '@/api/auth'
 
 defineOptions({ name: 'ForgotPasswordView' })
 
@@ -130,6 +131,8 @@ onBeforeUnmount(() => {
 watch(
   () => form.Email,
   (now, before) => {
+    // 邮箱一改，"未注册"的结论就失效了，等下一次失焦重新查
+    emailNotRegistered.value = false
     if (!verifyToken.value) return
     if ((now || '').trim().toLowerCase() !== (before || '').trim().toLowerCase()) {
       verifyToken.value = ''
@@ -139,6 +142,53 @@ watch(
 )
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/* ---------------- 邮箱反向校验：这个邮箱必须已经注册 ---------------- */
+/**
+ * 注册页查的是「邮箱不能被占用」，这里查的是**反方向**「邮箱必须存在」。
+ *
+ * 为什么需要：`/api/email` 后端不校验邮箱状态（已确认不做），
+ * 所以随便填个没注册过的邮箱也会**照发验证码**；用户填完验证码 + 新密码，
+ * 提交时才失败 —— 白等一轮，体验很差。在这里先挡住。
+ *
+ * 实现方式与注册页相同：`/api/userSingle` 传 Email 查。
+ *   - 查到账号 → 说明已注册 → 放行
+ *   - 返回「账号不存在」→ 说明没注册 → 飘红并禁止发码
+ *
+ * 注：这会暴露「某邮箱是否已注册」（可枚举）。但注册页本来就会暴露同一信息，
+ * 边际风险为零，换取的是明显的体验提升 —— 已与产品确认采用。
+ */
+const emailNotRegistered = ref(false)
+const checkingEmail = ref(false)
+const emailError = computed(() => (emailNotRegistered.value ? t('authPage.emailNotRegistered') : ''))
+
+/** true = 该邮箱确实有账号，可以继续 */
+async function checkEmailRegistered(): Promise<boolean> {
+  const email = form.Email.trim()
+  emailNotRegistered.value = false
+  if (!email || !EMAIL_RE.test(email)) return true
+  checkingEmail.value = true
+  try {
+    // checkEmailAvailableApi 语义：true=可注册（即**没有**账号），false=已被占用（即有账号）
+    const available = await checkEmailAvailableApi(email)
+    emailNotRegistered.value = available
+    if (available) {
+      // 没这个账号 → 之前拿的 token 和验证码都作废
+      verifyToken.value = ''
+      form.VerifyCode = ''
+    }
+    return !available
+  } catch {
+    // 查不了就放行 —— 查重只是体验优化，后端提交时才是真正的把关
+    return true
+  } finally {
+    checkingEmail.value = false
+  }
+}
+
+async function onEmailBlur() {
+  await checkEmailRegistered()
+}
 
 const rules = computed<FormRules>(() => ({
   Email: [
@@ -177,6 +227,11 @@ async function sendCode() {
   }
   sending.value = true
   try {
+    // 发码前再确认一次：没注册的邮箱**不该白收一封验证码邮件**
+    if (!(await checkEmailRegistered())) {
+      ElMessage.error(t('authPage.emailNotRegistered'))
+      return
+    }
     verifyToken.value = await sendVerifyCodeApi(email, 'ChangePassword')
     ElMessage.success(t('authPage.codeSent'))
     startCooldown(60)
@@ -190,6 +245,11 @@ async function sendCode() {
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
+  // 邮箱没注册就别白跑一趟改密流程
+  if (emailNotRegistered.value) {
+    ElMessage.warning(t('authPage.emailNotRegistered'))
+    return
+  }
   if (!verifyToken.value) {
     ElMessage.warning(t('authPage.sendCodeFirst'))
     return

@@ -47,13 +47,11 @@ export interface AccountRow {
   Status: number
 }
 
-/** 新增帐号（= 注册接口，文档原话："超级管理员添加账号也通用"） */
+/** 新增帐号（后端 2026-10-21 起专用接口，**不再和注册共用**） */
 export interface AccountCreatePayload {
   UserName: string
   Email: string
   Password: string
-  /** 可以为空字符串 */
-  Tele?: string
 }
 
 /** 资料字段（只这些能改） */
@@ -110,17 +108,29 @@ export async function getAccountDetail(params: {
   return data || null
 }
 
-/** 新增帐号：POST /api/userRegister */
+/**
+ * 管理员新增帐号：POST /api/userAdd（文档 `userAdd.html`）
+ *
+ * ⚠️ 与注册接口 `/api/userRegister` 的区别（后端 2026-10-21 原话：
+ *    「之前是和注册共用的，后把邮箱验证码放到后端，所以不能共用了」）：
+ *    - `/api/userRegister` 需要 `VerifyCode` + 发邮件拿到的一次性 token
+ *    - `/api/userAdd` 走**登录态**（`Authorization: Bearer <登录token>`），
+ *      不要验证码 —— 只给已登录的管理员用
+ *
+ * 请求字段：`UserName` / `Email` / `Password`（**没有 Tele**）
+ * 响应示例：`{"data":{"ReturnCode":"SUCCESS","Id":1002,"UserName":"user6666","Email":"..."}}`
+ *
+ * 后端权限：只允许 `Role=1`（后端管理员）。前端藏按钮只是体验，**真正把关在后端**。
+ */
 export async function createAccount(payload: AccountCreatePayload): Promise<void> {
   if (DEMO_MODE) return demoAccountCreate(payload)
   await request({
-    url: '/userRegister',
+    url: '/userAdd',
     method: 'post',
     data: {
       UserName: payload.UserName,
       Email: payload.Email,
-      Password: payload.Password,
-      Tele: payload.Tele ?? ''
+      Password: payload.Password
     }
   })
 }

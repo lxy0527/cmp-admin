@@ -11,7 +11,7 @@
  *
  * 权限差异（文档原话）：
  *   - `/alarm`        → 只有**后端管理员**（Role=1）能用，查所有客户
- *   - `/alarmByUser`  → 普通账号用，只看自己关联公司的，必须带 UserId
+ *   - `/alarmByUser`  → 普通账号用，只看自己关联公司的（身份由 token 决定；UserId 文档仍标必传，照传）
  *   - 删除            → 只有后端管理员有权限
  */
 import { request } from './request'
@@ -112,11 +112,11 @@ function compactParams(params: object): Record<string, unknown> {
  * 查询警报列表
  * ⚠️ 文档要求按角色分流：
  *   Role=1 后端管理员 → `/alarm`         跨客户看全部
- *   Role=0 普通账号   → `/alarmByUser`   只看自己关联公司的警报（必须带 UserId）
+ *   Role=0 普通账号   → `/alarmByUser`   只看自己关联公司的警报
  * 分流放在 api 层，页面不用感知。
  */
 export async function getAlarmList(query: AlarmQuery): Promise<AlarmRow[]> {
-  if (!isAdmin()) return getAlarmListByUser({ ...query, UserId: getSessionUserId() })
+  if (!isAdmin()) return getAlarmListByUser(query)
   if (DEMO_MODE) return demoAlarmList(query)
   const { data } = await request<AlarmRow[]>({
     url: '/alarm',
@@ -126,13 +126,22 @@ export async function getAlarmList(query: AlarmQuery): Promise<AlarmRow[]> {
   return Array.isArray(data) ? data : []
 }
 
-/** 查询警报列表（按登录账号，只看自己关联公司） */
-export async function getAlarmListByUser(query: AlarmQuery & { UserId: number }): Promise<AlarmRow[]> {
+/**
+ * 查询警报列表（按登录账号，只看自己关联公司）
+ *
+ * ⚠️ `UserId` 仍然照传，原因：
+ *   - 后端口头说「byUser 用 token 验证，UserId 传不传都没关系，只是用不到」；
+ *   - 但 `alarmByUser.html` 文档表格里 `UserId` 仍标着「是否必须 = 是」。
+ *   传一个用不到的字段没有任何副作用，而**不传**万一后端哪天加了必填校验就会炸。
+ *   身份反正由 `Authorization` 头决定，这里传的只是让文档契约对得上。
+ *   → 等文档把 `UserId` 改成非必须，这里再删。
+ */
+export async function getAlarmListByUser(query: AlarmQuery): Promise<AlarmRow[]> {
   if (DEMO_MODE) return demoAlarmList(query)
   const { data } = await request<AlarmRow[]>({
     url: '/alarmByUser',
     method: 'post',
-    data: compactParams(query)
+    data: compactParams({ ...query, UserId: getSessionUserId() })
   })
   return Array.isArray(data) ? data : []
 }
@@ -214,7 +223,7 @@ export async function getAlarmPage(
   query: AlarmQuery & { page: number; pageSize: number }
 ): Promise<PagedData<AlarmRow>> {
   if (!isAdmin()) {
-    return getAlarmByUserPage({ ...query, UserId: getSessionUserId() })
+    return getAlarmByUserPage(query)
   }
   if (DEMO_MODE) {
     const rows = await demoAlarmList(query)
@@ -233,9 +242,9 @@ export async function getAlarmPage(
   return toPaged(res)
 }
 
-/** 普通账号分页查询自己公司的警报：POST /api/alarmByUser（需要 token） */
+/** 普通账号分页查询自己公司的警报：POST /api/alarmByUser（UserId 照传，理由见 getAlarmListByUser） */
 export async function getAlarmByUserPage(
-  query: AlarmQuery & { page: number; pageSize: number; UserId: number }
+  query: AlarmQuery & { page: number; pageSize: number }
 ): Promise<PagedData<AlarmRow>> {
   if (DEMO_MODE) {
     const rows = await demoAlarmList(query)
@@ -246,7 +255,7 @@ export async function getAlarmByUserPage(
     url: '/alarmByUser',
     method: 'post',
     data: {
-      ...compactParams(rest),
+      ...compactParams({ ...rest, UserId: getSessionUserId() }),
       page: Math.max(0, page - 1),
       pagesize: pageSize
     }

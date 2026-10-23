@@ -1,0 +1,1197 @@
+##### index.html  【通用部分】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+通用说明：
+请求方式：GET / POST / PUT / DELETE
+请求格式：application/json
+响应格式：application/json
+数据处理：请求和响应json数据都要做encode处理，避免特殊字符错乱。
+字符编码：UTF-8
+头部参数：所有接口必须传参数：ApiId和ApiKey，防止黑客攻击系统，防止无效请求增加服务器负载。
+开放域名：正式上线域名必须录入数据库才有权限请求，防止黑客攻击系统，防止无效请求增加服务器负载。。
+传输协议：测试是用http方便，正式上线强制https （强制https后账号密码可不用再次加密传送）
+状态编号：StatusCode 成功：200（http200只代表通信成功） 失败：400 未授权：401
+返回编码：code 成功：SUCCESS 错误：FAIL
+具体描述：message 成功：OK ，其它情况具体验证描述
+接口地址：接口域名/path （path为具体的根地址，接口都放在api文件夹下，示例：接口域名/api/user）
+命名规则：数据库字段使用驼峰命名规则，如：UserName （部分因为缩写或便于阅读例外）。
+请求头部示例：
+-H ContentType:"application/json; charset=UTF-8";
+-H "ApiId", value;
+-H "ApiKey", value;
+Method:"POST";
+curl 接口域名/path
+请求body示例： 美观输出
+{"Id":1001,"UserName":"admin"}
+成功响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":""}
+错误响应示例： 美观输出
+{"code":"FAIL","message":"错误描述","data":""}
+备注：以上是所有接口都有的通用部分，下面的文档不在介绍此部分内容。
+
+##### userSingle.html  【查询单个账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+查询单个账号：
+1.使用Id、UserName、Email其中一个字段查询用户表，可传1个参数或多个，安顺序判断，建议3个都传，这样可以写一个方法运用到不同场景，但是要注意Id是整形（int），不以Id来查询的话Id值填0。
+2.Method：POST
+3.接口地址：域名/api/userSingle
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 以其它字段查询时值为0，或者不传 |
+UserName | 账号 | string | 是 | 可以 | 以其它字段查询时值为空（""）或不传 |
+Email | 邮箱 | string | 是 | 可以 | 以其它字段查询时值为空（""）或不传 |
+请求示例： 美观输出
+{"Id":0,"UserName":"admin","Email":""}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+UserName | 账号 | string | |
+Email | 邮箱 | string | |
+Name | 姓名 | string | 用户没填写时为null或"" |
+Role | 角色 | int | 值为0普通账号，值为1后端管理员 |
+Permission | 权限 | int | 值为0普通账号，值为1客户管理员。 |
+Tele | 电话 | string | |
+Head | 头像 | string | 头像，图片为相对根目录路径,如：/share/images/head.png |
+SN | 编号 | string | |
+Title | 职位 | string | |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式 |
+UpdateTime | 更新时间 | datetime | |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"Id":1,"UserName":"admin","Email":"632035276@qq.com","Name":"admin","Tele":"123456","Role":1,"Permission":0,"Head":null,"SN":"123","Title":null,"CreateTime":"\/Date(1782981969890)\/","UpdateTime":"\/Date(1782981969890)\/","Status":0}}
+
+##### user.html  【账号列表查询】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+账号列表查询：
+1.查询全部列表和搜索列表，不搜索时头部传ApiSN和ApiKey即可，SearchTitle不传或传""值也可以。
+2.Method：POST
+3.接口地址：域名/api/user
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+SearchTitle | 搜索 | String | 否 | 否 | 搜索字段可以是：账号/姓名/Email。其中一个都可以搜索。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"SearchTitle":"user01","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+UserName | 账号 | string | |
+Email | 邮箱 | string | |
+Name | 姓名 | string | 用户没填写时为null或"" |
+Role | 角色 | int | 值为0普通账号，值为1后端管理员 |
+Permission | 权限 | int | 值为0普通账号，值为1客户管理。 |
+Tele | 电话 | string | |
+Head | 头像 | string | 头像，图片为相对根目录路径,如：/share/images/head.png |
+SN | 编号 | string | |
+Title | 职位 | string | |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式 |
+UpdateTime | 更新时间 | datetime | |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"UserName":"admin","Email":"632035276@qq.com","Name":"admin","Tele":"123456","Role":1,"Permission":0,"Head":null,"SN":"123","Title":null,"CreateTime":"\/Date(1782981969890)\/","UpdateTime":"\/Date(1782981969890)\/","Status":0},{"Id":1001,"UserName":"user01","Email":"1222@qq.com","Name":"翟先生","Tele":"1362222222","Role":0,"Head":null,"SN":"123","Title":null,"Title":null,"CreateTime":"\/Date(1783495660820)\/","UpdateTime":"\/Date(1783495660820)\/","Status":0}]}
+
+##### userLogin.html  【账号登录】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+账号登录：
+1.传UserName（值也可以是Email）和Password,密码不用加密，但正式上线必须使用https传送
+2.Method：POST
+3.接口地址：域名/api/userLogin
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+UserName | 账号 | string | 是 | 否 | 值也可以是Email，值不能为空 |
+Password | 密码 | string | 是 | 否 | 密码不用加密，但正式上线必须使用https传送，值不能为空 |
+UserName登录示例： 美观输出
+{"UserName":"admin","Password": "******"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+Id | Id | int | |
+UserName | 账号 | string | |
+Email | 邮箱 | string | |
+Name | 姓名 | string | 用户没填写时为null或"" |
+Role | 角色 | int | 值为0普通账号，值为1后端管理员 |
+Permission | 权限 | int | 值为0普通账号，值为1客户管理 |
+Head | 头像 | string | 头像，图片为相对根目录路径,如：/share/images/head.png |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+token | token | string | token有效期目前为3个小时 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","token":"ahNQpyaA5YRdXY2urTI7Mc2S+bonYMQI2UiECbNY5vpg9QXX/8wZEasQCG47Br0BtNdxdpQFnK6s+81vdJkPPiVv83ZdUdh8qdvc3DzZETU=","data":{"ReturnCode":"SUCCESS","Id":1,"UserName":"admin","Email":"632035276@qq.com","Name":"admin","Role":1,"Permission":0,"Head":null,"Status":0}}
+
+##### userUnRegister.html  【系统保留账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+系统保留账号：
+1.传UserName查询
+2.Method：POST
+3.接口地址：域名/api/userUnRegister
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+UserName | 账号 | string | 是 | 否 | 不能为空 |
+请求示例： 美观输出
+{"UserName":"vision"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Valid | 验证 | string | code=SUCCESS和message=OK只代表已检查，只有Valid值为Yes才可以注册，值为No，系统不允许注册账号。 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"Valid":"Yes"}}
+
+##### userRegister.html  【账号注册】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+账号注册：
+1.传UserName、Email和Password，密码不用加密，但正式上线必须使用https传送
+2.Method：POST
+3.接口地址：域名/api/userRegister
+4.超级管理员添加账号也通用
+5.token为发送邮件时获取的，有效期10分钟，只可使用一次。
+请求头示例：
+请求头在通用文档的基础上增加一条：
+-H "Authorization", "Bearer " + token;
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+UserName | 账号 | string | 是 | 否 | 值不能为空 |
+Email | 邮箱 | string | 是 | 否 | 值不能为空 |
+Password | 密码 | string | 是 | 否 | 密码不用加密，但正式上线必须使用https传送，值不能为空 |
+Tele | 电话 | string | 是 | 是 | 值可以为空("") |
+VerifyCode | 验证码 | string | 是 | 否 | 用户填写的邮箱验证码 |
+请求示例： 美观输出
+{"UserName":"admin","Email":"12345678@qq.com","Tele":"12345678","Password": "******","VerifyCode": "123456"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+Id | Id | int | |
+UserName | 账号 | string | |
+Email | 邮箱 | string | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS","Id":1002,"UserName":"user6666","Email":"5665166@qq.com"}}
+
+##### changePassword.html  【修改密码】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+修改密码：
+1.传Email和Password，密码不用加密，但正式上线必须使用https传送
+2.Method：POST
+3.接口地址：域名/api/changePassword
+4.超级管理员添加账号也通用
+5.token为发送邮件时获取的，有效期10分钟，只可使用一次。
+请求头示例：
+请求头在通用文档的基础上增加一条：
+-H "Authorization", "Bearer " + token;
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Email | 邮箱 | string | 是 | 否 | 值不能为空 |
+Password | 密码 | string | 是 | 否 | 密码不用加密，但正式上线必须使用https传送，值不能为空 |
+VerifyCode | 验证码 | string | 是 | 否 | 用户填写的邮箱验证码 |
+请求示例： 美观输出
+{"Email":"12345678@qq.com","Password": "******","VerifyCode": "123456"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### email.html  【发送邮件】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+发送邮件：
+1.发送邮件，注意不要随便乱写内容测试，也不要测试过于频繁，以免风控把邮箱拉入黑名单。
+2.Method：POST
+3.接口地址：域名/api/email
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Email | 接收邮箱 | string | 是 | 否 | |
+Scene | 使用场景 | string | 是 | 否 | 注册账号值为：Register 修改密码值为：ChangePassword |
+请求示例： 美观输出
+{"Email":"123456@qq.com","Scene":"Register"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+token | token | string | token有效期目前为10分钟，只可使用一次。 |
+备注：在参数验证通过的情况下，邮件发送失败message返回的内容是直接返回SMTP服务器返回的错误。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","token":"ahNQpyaA5YRdXY2urTI7Mc2S+bonYMQI2UiECbNY5vpg9QXX/8wZEasQCG47Br0BtNdxdpQFnK6s+81vdJkPPiVv83ZdUdh8qdvc3DzZETU=","data":{"ReturnCode":"SUCCESS"}}
+
+##### userProfile.html  【编辑个人资料】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+编辑个人资料：
+1.姓名、电话、编号、职位修改，如有需要后面再增加，每个字段必传，除了Id不能为空，其它的可以为空，
+2.Method：POST
+3.接口地址：域名/api/userProfile
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+Name | 姓名 | string | 是 | 可以 | |
+Tele | 电话 | string | 是 | 可以 | |
+SN | 编号 | string | 是 | 可以 | |
+Title | 职位 | string | 是 | 可以 | |
+请求示例： 美观输出
+{"Id":1001,"Name":"xxx","Tele":"12345","SN":"12345","Title":"保安"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### userSet.html  【账号设置】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+编辑个人资料：
+1.账号权限、状态设置等。
+2.Method：POST
+3.接口地址：域名/api/userSet
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+Permission | 权限 | int | 是 | 否 | 不能为空 0普通权限，1是客户管理，客户管理比普通账号了多一些修改和添加他所关联的公司的内容，建议一个客户最多设置一个，避免乱改或误操作。 |
+Status | 状态 | int | 是 | 否 | 不能为空 0开启，1关闭 |
+请求示例： 美观输出
+{"Id":1001,"Permission":0,"Status":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerSingle.html  【查询单个客户】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+查询单个客户：
+1.使用Id、SN其中一个字段查询客服表，也可以2个参数都传，不能同时为空。
+2.Method：POST
+3.接口地址：域名/api/customerSingle
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 以其它字段查询时值为0，或不传 |
+SN | 编号 | string | 是 | 可以 | 以其它字段查询时值为空（""）或不传 |
+请求示例： 美观输出
+{"Id":1,"SN":"2026091614470963462"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+Company | 公司名称 | string | |
+SN | 编号 | string | |
+Manager | 负责人姓名 | string | |
+Tele | 负责人电话 | string | |
+SN | 编号 | string | |
+Logo | logo | string | 图片为相对根目录路径URL。 |
+Remark | 备注 | string | |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式 |
+UpdateTime | 更新时间 | datetime | |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"Id":1,"Status":0,"CreateTime":"\/Date(1784349503290)\/","UpdateTime":"\/Date(1789541231783)\/","Company":"洪昌泥井有限公司","SN":"2026091614470963462","Manager":"王某某","Tele":"123456","Logo":null,"Remark":""}}
+
+##### customer.html  【客户列表查询】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+客户列表查询：
+1.查询全部列表和搜索列表，不搜索时只需头部传ApiSN和ApiKey即可，SearchTitle不传或传""，注意这是查询所有客户，只有超级管理员用这个接口，其它账号请用根据登录账号查询客户接口。
+2.Method：POST
+3.接口地址：域名/api/customer
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+SearchTitle | 搜索 | String | 否 | 否 | 输入关键词或编码搜索 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"SearchTitle":"洪昌泥井","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+Company | 公司名称 | string | |
+SN | 编号 | string | |
+Manager | 负责人姓名 | string | |
+Tele | 负责人电话 | string | |
+SN | 编号 | string | |
+Logo | logo | string | 图片为相对根目录路径URL。 |
+Remark | 备注 | string | |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式。 |
+UpdateTime | 更新时间 | datetime | |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"Status":0,"CreateTime":"\/Date(1784349503290)\/","UpdateTime":"\/Date(1789541231783)\/","Company":"洪昌泥井有限公司","SN":"2026091614470963462","Manager":"王某某","Tele":"123456","Logo":null,"Remark":""}]}
+
+##### customerByUser.html  【登录账号查询客户】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+登录账号查询客户：
+1.根据登录账号UserId查询关联客户列表，非搜索SearchTitle不传，如果该账号一个都没有关联，data数据为空。
+2.Method：POST
+3.接口地址：域名/api/customerByUser
+请求头示例：
+请求头在通用文档的基础上增加一条：
+-H "Authorization", "Bearer " + token;
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+SearchTitle | 搜索 | String | 否 | 否 | 输入关键词或编码搜索 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"SearchTitle":"洪昌泥井","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+Company | 公司名称 | string | |
+SN | 编号 | string | |
+Manager | 负责人姓名 | string | |
+Tele | 负责人电话 | string | |
+SN | 编号 | string | |
+Logo | logo | string | 图片为相对根目录路径URL。 |
+Remark | 备注 | string | |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式。 |
+UpdateTime | 更新时间 | datetime | |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"Status":0,"CreateTime":"\/Date(1784349503290)\/","UpdateTime":"\/Date(1789541231783)\/","Company":"洪昌泥井有限公司","SN":"2026091614470963462","Manager":"王某某","Tele":"123456","Logo":null,"Remark":""}]}
+
+##### customerAdd.html  【添加客户】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+添加客户：
+1.使用Company、SN不能为空，其它的可以为空。
+2.Method：POST
+3.接口地址：域名/api/customerAdd
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Company | 公司名称 | string | 是 | 否 | 不能为空 |
+SN | 编号 | string | 是 | 否 | 不能为空 |
+Manager | 负责人 | string | 是 | 可以 | |
+Tele | 负责人电话 | string | 是 | 可以 | |
+Logo | Logo | string | 是 | 可以 | 图片为相对根目录路径，/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png |
+Remark | 备注 | string | 是 | 可以 | |
+请求示例： 美观输出
+{"Company":"港进建机服务中心有限公司","SN":"2026091614470963462","Manager":"王某某","Tele":"12345678","Logo":"/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png","Remark":"2026091614470963462"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerEdit.html  【修改客户】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+修改客户：
+1.每个字段必传，Id、Company、SN、Status不能为空，其它的可以为空。
+2.Method：POST
+3.接口地址：域名/api/customerEdit
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+Company | 公司名称 | string | 是 | 否 | 不能为空 |
+SN | 编号 | string | 是 | 否 | 不能为空 |
+Manager | 负责人 | string | 是 | 可以 | |
+Tele | 负责人电话 | string | 是 | 可以 | |
+Logo | Logo | string | 是 | 可以 | 图片为相对根目录路径，/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png |
+Remark | 备注 | string | 是 | 可以 | |
+Status | 状态 | int | 是 | 否 | 不能为空，0开启，1关闭 |
+请求示例： 美观输出
+{"Id":1,"Company":"港进建机服务中心有限公司","SN":"2026091614470963462","Manager":"王某某","Tele":"12345678","Logo":"/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png","Remark":"2026091614470963462","Status":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerDelete.html  【删除客户】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+删除客户：
+1.传Id不能为空。
+2.Method：POST
+3.接口地址：域名/api/customerDelete
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+请求示例： 美观输出
+{"Id":1}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerStatus.html  【批量设置客户状态】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量设置客户状态：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/customerStatus
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+Status | 状态 | int | 是 | 否 | 不能为空，0开启，1关闭 |
+请求示例： 美观输出
+{"IdArr":"1,2,3","Status":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerDeletes.html  【批量删除客户】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量删除客户：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/customerDeletes
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+请求示例： 美观输出
+{"IdArr":"1,2,3"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerUser.html  【查询关联账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+客户关联账号：
+1.传CustomerId查询，非搜索SearchTitle不传。
+2.Method：POST
+3.接口地址：域名/api/customerUser
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+CustomerId | Id | int | 是 | 否 | 不能为空 |
+SearchTitle | 搜索 | String | 否 | 否 | 输入账号或姓名查询。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"CustomerId":1001,"SearchTitle":"User01","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+CustomerId | 客户Id | int | |
+UserId | 账号Id | int | |
+Name | 姓名 | string | |
+UserName | 账号 | string | |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段，一个公司可关联多个账号，所以data里面的大数据是多条。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"CustomerId":1,"UserId":1,"Name":"admin","UserName":"admin","Status":0}]}
+
+##### customerUserAdd.html  【添加关联账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+添加关联账号：
+1.CustomerId,UserId不能为空
+2.Method：POST
+3.接口地址：域名/api/customerUserAdd
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+CustomerId | 客户Id | int | 是 | 否 | 不能为空 |
+UserId | 账号Id | int | 是 | 否 | 不能为空 |
+UserName | 账号 | string | 是 | 否 | 不能为空 |
+Name | 姓名 | string | 是 | 可以 | |
+请求示例： 美观输出
+{"CustomerId":1,"UserId":1001,"UserName":"user01","Name":"xxx"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerUserEdit.html  【修改关联账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+修改关联账号：
+1.每个字段必传，Id、Status不能为空，其它的可以为空。
+2.Method：POST
+3.接口地址：域名/api/customerUserEdit
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+Name | 姓名 | string | 是 | 可以 | |
+Status | 状态 | int | 是 | 否 | 不能为空，0开启，1关闭 |
+请求示例： 美观输出
+{"Id":1001,"Name":"xxx","Status":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerUserDelete.html  【删除关联账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+删除关联账号：
+1.传Id不能为空。
+2.Method：POST
+3.接口地址：域名/api/customerUserDelete
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+请求示例： 美观输出
+{"Id":1}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerUserStatus.html  【批量设置关联账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量关联账号状态：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/customerUserStatus
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+Status | 状态 | int | 是 | 否 | 不能为空，0开启，1关闭 |
+请求示例： 美观输出
+{"IdArr":"1,2,3","Status":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### customerUserDeletes.html  【批量删除关联账号】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量删除关联账号：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/customerUserDeletes
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+请求示例： 美观输出
+{"IdArr":"1,2,3"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### album.html  【查询相册】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+查询相册：
+1.查询相册列表和搜索列表，没有搜索时只需头部传ApiSN和ApiKey即可，注意这是查询所有用户的相册，只有超级管理员用这个接口，其它的账号用根据登录账号查询接口。
+2.Method：POST
+3.接口地址：域名/api/album
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+SearchTitle | 搜索 | String | 否 | 否 | 输入相册名称搜索，只输关键词也可以搜索。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"SearchTitle":"产品图片","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+Name | 相册名称 | string | |
+UserId | 用户Id | int | |
+FolderName | 文件夹名称 | string | 服务器上实际文件夹名称 |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式。 |
+UpdateTime | 更新时间 | datetime | |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"Name":"警报拍照","UserId":1,"FolderName":"50988395-f502-468c-8016-4c7324b14a4d","CreateTime":"\/Date(1783657010547)\/","UpdateTime":"\/Date(1783657065443)\/"},{"Id":2,"Name":"机械设备","UserId":1,"FolderName":"01bdce22-ef57-4a74-883b-6528530837bf","CreateTime":"\/Date(1783657085637)\/","UpdateTime":"\/Date(1783657085637)\/"}]}
+
+##### albumByUser.html  【登录账号查询相册】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+根据登录账号查询相册：
+1.根据登录账号查询相册，不搜索时SearchTitle不传，没有相册data返回为空。
+2.Method：POST
+3.接口地址：域名/api/albumByUser
+请求头示例：
+请求头在通用文档的基础上增加一条：
+-H "Authorization", "Bearer " + token;
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+SearchTitle | 搜索 | String | 否 | 否 | 输入相册名称，只输关键词也可以搜索。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"SearchTitle":"产品图片","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+Name | 相册名称 | string | |
+UserId | 用户Id | int | |
+FolderName | 文件夹名称 | string | 服务器上实际文件夹名称 |
+CreateTime | 创建时间 | datetime | 时间字段Decode后输出默认时间格式。 |
+UpdateTime | 更新时间 | datetime | |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"Name":"警报拍照","UserId":1,"FolderName":"50988395-f502-468c-8016-4c7324b14a4d","CreateTime":"\/Date(1783657010547)\/","UpdateTime":"\/Date(1783657065443)\/"},{"Id":2,"Name":"机械设备","UserId":1,"FolderName":"01bdce22-ef57-4a74-883b-6528530837bf","CreateTime":"\/Date(1783657085637)\/","UpdateTime":"\/Date(1783657085637)\/"}]}
+
+##### albumCreate.html  【创建相册】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+创建相册：
+1.使用userId、Name不能为空。
+2.Method：POST
+3.接口地址：域名/api/albumCreate
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+UserId | Id | int | 是 | 否 | 不能为空 |
+Name | 相册名称 | string | 是 | 否 | 不能为空 |
+请求示例： 美观输出
+{"UserId":1001,"Name":"我的相册"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumEdit.html  【修改相册】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+修改相册：
+1.每个字段必传，Id、Name不能为空。
+2.Method：POST
+3.接口地址：域名/api/albumEdit
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+Name | 相册名称 | string | 是 | 否 | 不能为空 |
+请求示例： 美观输出
+{"Id":1,"Name":"我的相册"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumDelete.html  【删除相册】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+删除相册：
+1.传Id和文件夹名称，不能为空。
+2.Method：POST
+3.接口地址：域名/api/albumDelete
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+FolderName | 文件夹名称 | int | 是 | 否 | 服务器上实际文件夹名称，不能为空 |
+请求示例： 美观输出
+{"Id":1,"FolderName": "50988395-f502-468c-8016-4c7324b14a4d"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumImage.html  【查询图片】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+查询图片：
+1.使用相册Id查询，不搜索时SearchTitle可以不传。
+2.Method：POST
+3.接口地址：域名/api/albumImage
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+AlbumId | 相册Id | int | 是 | 否 | 相册Id，不能为空 |
+SearchTitle | 搜索 | String | 否 | 否 | 输入图片名称搜索，只输关键词也可以搜索。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"AlbumId":1001,"SearchTitle":"挖机","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+Name | 图片名称 | string | |
+URL | 图片地址 | string | 图片相对根目录地址 |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：相对根目录路径。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":1,"Name":"挖机","URL":"/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png"},{"Id":3,"Name":"QQ20260714-122602","URL":"/user/01bdce22-ef57-4a74-883b-6528530837bf/ee334b7a-a38a-473a-ae51-8566be4f2bff.png"},{"Id":4,"Name":"VCG41N1149247392","URL":"/user/01bdce22-ef57-4a74-883b-6528530837bf/34185338-4fd7-4e6a-b670-ebd6f05414f2.jpg"}]}
+
+##### albumImageEdit.html  【编辑图片】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+编辑图片：
+1.每个字段必传，Id、Name不能为空。
+2.Method：POST
+3.接口地址：域名/api/albumImageEdit
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+Name | 图片名称 | string | 是 | 否 | 不能为空 |
+请求示例： 美观输出
+{"Id":1,"Name":"公司logo"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumImageDelete.html  【删除图片】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+删除图片：
+1.传Id不能为空。
+2.Method：POST
+3.接口地址：域名/api/albumImageDelete
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+URL | 图片地址 | int | 是 | 否 | 不能为空，是从数据库里面查询出来的，相对根目录地址。 |
+请求示例： 美观输出
+{"Id":1,"URL": "/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumImageDeletes.html  【批量删除图片】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量删除图片：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/albumImageDeletes
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+请求示例： 美观输出
+{"IdArr":"1,2,3"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumImageUpload.html  【上传图片】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+上传图片：
+1.不用body传JSON，因为上传文件是对象且包含名称、扩展名、二进制图片数据等，不太好处理数据，提交表单到接口地址即可。
+2.Method：POST
+3.接口地址：域名/api/uploadImage
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+folderId | 相册(文件夹)Id | int | 是 | 否 | 不能为空，表单的名称为folderId，例如：input type="hidden" name="folderId" |
+file | 图片 | int | 是 | 否 | 不能为空，表单的名称为file，例如：input type="file" name="file"。也可以其它js上传组手，支持单张或批量上传。 |
+请求示例：
+POST提交表单即可，或使用其它js上传组手。
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### albumImageReplace.html  【替换图片】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+上传图片：
+1.不用body传JSON，因为上传文件是对象且包含名称、扩展名、二进制图片数据等，不太好处理数据，提交表单到接口地址即可。
+2.Method：POST
+3.接口地址：域名/api/albumImageReplace
+4.图片扩展名必须和原来的一致（格式不一致后端需要查询图片引用的地方并修改，数据量大后端很费力）
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空，表单的名称为Id，例如：input type="hidden" name="Id" |
+file | 图片 | int | 是 | 否 | 不能为空，表单的名称为file，例如：input type="file" name="file"。也可以其它js上传组手。 |
+请求示例：
+POST提交表单即可，或使用其它js上传组手。
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### alarm.html  【查询警报列表】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+查询警报列表：
+1.传不同的字段查询不通数据，只有超级管理员用这个接口，其它账号请用根据登录账号查询。
+2.Method：POST
+3.接口地址：域名/api/alarm
+4.组合查询，传不同参数组合查询不同数据：（1）CategoryId：查询该分类下全部正常(指不包含隐藏、误报、关闭) （2）CategoryId + FalsePositive：误报 （3）CategoryId + UserStatus：隐藏 （4）CategoryId + Level：高危险 （5）CategoryId + Status：关闭 （6）CategoryId + StartTime + EndTime：根据时间查询 （7）CategoryId + SearchTitle：搜索
+5.CategoryId：这里的分类Id指： 值1：智能锁安全管控系统 值2：移动机械安全管控系统 值3：起重机（吊机/塔吊/天秤）安全管控系统 值4：一线作业智能监控系统 值5：AI智能监控系统 值6：密闭空间安全监测系统 值7：虚拟培训系统
+6.为了方便区分机器和设备，出故障也方便查找，新系统重新改了对应关系：产品--对应--传感器，1对1或1多关系。但有的产品只是一个场景名称， 有些产品的传感器是同一物品，例如：（1）吊机--高度传感器 （2）密闭空间系统--温度传感器（3）智能锁--智能锁
+警报功能的侧导航、搜索和操作可以参考下面截图：
+备注：
+1.设置里面包含：显示隐藏，显示关闭，是否误报。
+2.删除只有后端管理员账号才有权限。
+3.处理是提交申请维修或误报，前端暂时可不做，后端先预留功能方便以后扩展功能。
+4.高风险清单要看产品提供商有没有分等级推送，没有就不做了，后端先预留功能方便以后扩展功能。
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+CategoryId | 分类Id | int | 是 | 否 | 必须传 |
+FalsePositive | 是否误报 | int | 否 | 否 | 值0为否，值1为是。非必须，但是查询误报列表时必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+ProcessStatus | 未处理清单 | int | 否 | 否 | 值0为未处理，值1为是已处理。非必须，但是查询未处理列表时必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+Level | 高风险清单 | int | 否 | 否 | 值1：1级（低风险），值2：2级（中风险），值3：3级（高风险），int不能为""，所以要么不传，要么就传正确的参数。 |
+UserStatus | 隐藏清单 | int | 否 | 否 | 值0为显示，值1为隐藏。非必须，但是查询必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+Status | 状态 | int | 否 | 否 | 值0为显示，值1关闭。非必须，但是查询关闭清单时必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+StartTime | 开始时间 | datetime | 否 | 否 | StartTime和EndTime要一起传 |
+EndTime | 结束时间 | datetime | 否 | 否 | |
+SearchTitle | 搜索 | String | 否 | 否 | 搜索字段可以是：警报编号/产品名称/产品编号编号/传感器/或传感器编号。其中一个都可以搜索。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"CategoryId":1,"SearchTitle":"挖机","page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+SN | 编号 | string | 警报编号 |
+ProductName | 产品名称 | string | |
+ProductSN | 产品编号 | string | |
+ProductLocation | 产品位置 | string | |
+SensorDevice | 传感器 | string | 图片为相对根目录路径URL。 |
+SensorDeviceSN | 传感器编号 | string | |
+CategoryId | 分类Id | int | 1：电子锁系统 值2：移动机械系统 值3：一线作业智能监控系统 值4：一线作业智能监控系统 值5：AI智能监控系统 值6：密闭空间系统 值7：虚拟培训系统 |
+Description | 警报详情描述 | string | |
+DescriptionEn | 警报详情描述英文 | string | |
+AlarmValue | 警报数值 | string | 值和单位一起存储，如：0.03m |
+ConstSite | 工地 | string | |
+ConstSiteZone | 工地区域 | string | |
+Floor | 楼层 | int | |
+Lon | 经度 | DECIMAL (18, 6) | |
+Lat | 纬度 | DECIMAL (18, 6) | |
+Location | 警报详细位置 | string | GPS定位详细位置，如果误差太大，前端不显示这个数据，调经纬度即可。 |
+Level | 警报等级 | int | 值1：1级（低风险），值2：2级（中风险），值3：3级（高风险） |
+ImageUrl | 图片 | string | 相对路径 |
+VideoUrl | 视频 | string | 是对路径 |
+Worker | 员工 | string | |
+WorkerEn | 员工英文名 | string | |
+WorkerNFC | 员工NFC | string | |
+CustomerId | 客户Id | int | |
+CustomerSN | 客户编码 | string | |
+CreateTime | 警报时间 | datetime | 时间字段Decode后输出默认时间格式 |
+UpdateTime | 更新时间 | datetime | |
+AlarmTime | 警报时间 | datetime | |
+FalsePositive | 是否误报 | int | 值为0否，值为1是。 |
+ProcessStatus | 处理状态 | int | 值为0未处理，值为1已处理。 |
+UserStatus | 用户状态 | int | 默认值为0显示，值为1是隐藏状态。 |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+Remark | 备注 | string | |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":2,"SN":"1002","ProductName":"挖机","ProductSN":"N1002","ProductLocation":"一楼B区","SensorDevice":"摄像头M2","SensorDeviceSN":"M1002","CategoryId":1,"Description":"高度超出","DescriptionEn":null,"AlarmValue":"8.22m","ConstSite":"工会大厦","Floor":1,"Lon":0.000000,"Lat":0.000000,"Location":"工会大厦东10m","Level":1,"ImageUrl":"/user/01bdce22-ef57-4a74-883b-6528530837bf/34185338-4fd7-4e6a-b670-ebd6f05414f2.jpg","VideoUrl":"/user/cad76ed1-62f0-4193-99ca-c658181c3612/4041abda-1e93-471e-8b3a-edb022dcfb74.mp4","Worker":null,"WorkerEn":null,"WorkerNFC":null,"CustomerId":0,"CustomerSN":"6666","CreateTime":"\/Date(1784002390497)\/","UpdateTime":"\/Date(1784002390497)\/","AlarmTime":"\/Date(1784002390497)\/","FalsePositive":0,"ProcessStatus":0,"UserStatus":0,"Status":0,"Remark":""},{"Id":1,"SN":"1001 ","ProductName":"挖机","ProductSN":"N1001","ProductLocation":"一楼A区","SensorDevice":"摄像头M1","SensorDeviceSN":"M1001","CategoryId":1,"Description":"前方接近","DescriptionEn":null,"AlarmValue":"0.03m","ConstSite":"工会大厦","Floor":1,"Lon":0.000000,"Lat":0.000000,"Location":"工会大厦东10m","Level":1,"ImageUrl":"/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png","VideoUrl":"/user/cad76ed1-62f0-4193-99ca-c658181c3612/4041abda-1e93-471e-8b3a-edb022dcfb74.mp4","Worker":null,"WorkerEn":null,"WorkerNFC":null,"CustomerId":0,"CustomerSN":"6666","CreateTime":"\/Date(1783734942370)\/","UpdateTime":"\/Date(1783734942370)\/","AlarmTime":"\/Date(1784002390497)\/","FalsePositive":0,"ProcessStatus":0,"UserStatus":0,"Status":0,"Remark":""}]}
+
+##### alarmByUser.html  【登录账号查询警报】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+根据登录账号查询警报列表：
+1.根据登录账号查询账号关联公司下面的警报。
+2.Method：POST
+3.接口地址：域名/api/alarmByUser
+4.组合查询，传不同参数组合查询不同数据：（1）CategoryId + UserId：查询该分类下全部正常(指不包含隐藏、误报、关闭) （2）CategoryId + FalsePositive + UserId：误报 （3）CategoryId + UserStatus + UserId：隐藏 （4）CategoryId + Level + UserId：高危险 （5）CategoryId + Status + UserId：关闭 （6）CategoryId + StartTime + EndTime + UserId：根据时间查询 （7）CategoryId + SearchTitle + UserId：搜索
+请求头示例：
+请求头在通用文档的基础上增加一条：
+-H "Authorization", "Bearer " + token;
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+CategoryId | 分类Id | int | 是 | 否 | 必须传 |
+UserId | 登录账号Id | int | 是 | 否 | 必须传 |
+FalsePositive | 是否误报 | int | 否 | 否 | 值0为否，值1为是。非必须，但是查询误报列表时必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+ProcessStatus | 未处理清单 | int | 否 | 否 | 值0为未处理，值1为是已处理。非必须，但是查询未处理列表时必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+Level | 高风险清单 | int | 否 | 否 | 值1：1级（低风险），值2：2级（中风险），值3：3级（高风险），int不能为""，所以要么不传，要么就传正确的参数。 |
+UserStatus | 隐藏清单 | int | 否 | 否 | 值0为显示，值1为隐藏。非必须，但是查询必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+Status | 状态 | int | 否 | 否 | 值0为显示，值1关闭。非必须，但是查询关闭清单时必须转，int不能为""，所以要么不传，要么就传正确的参数。 |
+StartTime | 开始时间 | datetime | 否 | 否 | StartTime和EndTime要一起传 |
+EndTime | 结束时间 | datetime | 否 | 否 | |
+SearchTitle | 搜索 | String | 否 | 否 | 搜索字段可以是：警报编号/产品名称/产品编号编号/传感器/或传感器编号。其中一个都可以搜索。 |
+page | 页码 | int | 否 | 否 | 从0开始，不传默认为0，其实是第1页 |
+pagesize | 每页条数 | int | 否 | 否 | 不传默认20条 |
+请求示例： 美观输出
+{"CategoryId":1,"UserId":1001,"page":0,"pagesize":20}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+SN | 编号 | string | 警报编号 |
+ProductName | 产品名称 | string | |
+ProductSN | 产品编号 | string | |
+ProductLocation | 产品位置 | string | |
+SensorDevice | 传感器 | string | 图片为相对根目录路径URL。 |
+SensorDeviceSN | 传感器编号 | string | |
+CategoryId | 分类Id | int | 产品分类Id |
+Description | 警报详情描述 | string | |
+DescriptionEn | 警报详情描述英文 | string | |
+AlarmValue | 警报数值 | string | 值和单位一起存储，如：0.03m |
+ConstSite | 工地 | string | |
+ConstSiteZone | 工地区域 | string | |
+Floor | 楼层 | int | |
+Lon | 经度 | DECIMAL (18, 6) | |
+Lat | 纬度 | DECIMAL (18, 6) | |
+Location | 警报详细位置 | string | GPS定位详细位置，如果误差太大，前端不显示这个数据，调经纬度即可。 |
+Level | 警报等级 | int | 值1：1级（低风险），值2：2级（中风险），值3：3级（高风险） |
+ImageUrl | 图片 | string | 相对路径 |
+VideoUrl | 视频 | string | 是对路径 |
+Worker | 员工 | string | |
+WorkerEn | 员工英文名 | string | |
+WorkerNFC | 员工NFC | string | |
+CustomerId | 客户Id | int | |
+CustomerSN | 客户编码 | string | |
+CreateTime | 警报时间 | datetime | 时间字段Decode后输出默认时间格式 |
+UpdateTime | 更新时间 | datetime | |
+AlarmTime | 警报时间 | datetime | |
+FalsePositive | 是否误报 | int | 值为0否，值为1是。 |
+ProcessStatus | 处理状态 | int | 值为0未处理，值为1已处理。 |
+UserStatus | 用户状态 | int | 默认值为0显示，值为1是隐藏状态。 |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+Remark | 备注 | string | |
+page | 当前页 | int | |
+pagecount | 总页 | int | |
+totalcount | 总条数 | int | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","page":0,"pagecount":1,"totalcount":2,"data":[{"Id":2,"SN":"1002","ProductName":"挖机","ProductSN":"N1002","ProductLocation":"一楼B区","SensorDevice":"摄像头M2","SensorDeviceSN":"M1002","CategoryId":1,"Description":"高度超出","DescriptionEn":null,"AlarmValue":"8.22m","ConstSite":"工会大厦","Floor":1,"Lon":0.000000,"Lat":0.000000,"Location":"工会大厦东10m","Level":1,"ImageUrl":"/user/01bdce22-ef57-4a74-883b-6528530837bf/34185338-4fd7-4e6a-b670-ebd6f05414f2.jpg","VideoUrl":"/user/cad76ed1-62f0-4193-99ca-c658181c3612/4041abda-1e93-471e-8b3a-edb022dcfb74.mp4","Worker":null,"WorkerEn":null,"WorkerNFC":null,"CustomerId":0,"CustomerSN":"6666","CreateTime":"\/Date(1784002390497)\/","UpdateTime":"\/Date(1784002390497)\/","AlarmTime":"\/Date(1784002390497)\/","FalsePositive":0,"ProcessStatus":0,"UserStatus":0,"Status":0,"Remark":""},{"Id":1,"SN":"1001 ","ProductName":"挖机","ProductSN":"N1001","ProductLocation":"一楼A区","SensorDevice":"摄像头M1","SensorDeviceSN":"M1001","CategoryId":1,"Description":"前方接近","DescriptionEn":null,"AlarmValue":"0.03m","ConstSite":"工会大厦","Floor":1,"Lon":0.000000,"Lat":0.000000,"Location":"工会大厦东10m","Level":1,"ImageUrl":"/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png","VideoUrl":"/user/cad76ed1-62f0-4193-99ca-c658181c3612/4041abda-1e93-471e-8b3a-edb022dcfb74.mp4","Worker":null,"WorkerEn":null,"WorkerNFC":null,"CustomerId":0,"CustomerSN":"6666","CreateTime":"\/Date(1783734942370)\/","UpdateTime":"\/Date(1783734942370)\/","AlarmTime":"\/Date(1784002390497)\/","FalsePositive":0,"ProcessStatus":0,"UserStatus":0,"Status":0,"Remark":""}]}
+
+##### alarmSingle.html  【查询单条警报】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+查询单条警报：
+1.使用Id、SN其中一个字段查询，不能同时为空。
+2.Method：POST
+3.接口地址：域名/api/alarmSingle
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 以其它字段查询时值为0 |
+SN | 编号 | string | 是 | 可以 | 以其它字段查询时值为空（""） |
+请求示例： 美观输出
+{"Id":1,"SN":"1001"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | |
+SN | 编号 | string | 警报编号 |
+ProductName | 产品名称 | string | |
+ProductSN | 产品编号 | string | |
+ProductLocation | 产品位置 | string | |
+SensorDevice | 传感器 | string | 图片为相对根目录路径URL。 |
+SensorDeviceSN | 传感器编号 | string | |
+CategoryId | 分类Id | int | 产品分类Id |
+Description | 警报详情描述 | string | |
+DescriptionEn | 警报详情描述英文 | string | |
+AlarmValue | 警报数值 | string | 值和单位一起存储，如：0.03m |
+ConstSite | 工地 | string | |
+ConstSiteZone | 工地区域 | string | |
+Floor | 楼层 | int | |
+Lon | 经度 | DECIMAL (18, 6) | |
+Lat | 纬度 | DECIMAL (18, 6) | |
+Location | 警报详细位置 | string | GPS定位详细位置，如果误差太大，前端不显示这个数据，调经纬度即可。 |
+Level | 警报等级 | int | 值1：1级（低风险），值2：2级（中风险），值3：3级（高风险） |
+ImageUrl | 图片 | string | 相对路径 |
+VideoUrl | 视频 | string | 是对路径 |
+Worker | 员工 | string | |
+WorkerEn | 员工英文名 | string | |
+WorkerNFC | 员工NFC | string | |
+CustomerId | 客户Id | int | |
+CustomerSN | 客户编码 | string | |
+CreateTime | 警报时间 | datetime | 时间字段Decode后输出默认时间格式 |
+UpdateTime | 更新时间 | datetime | |
+AlarmTime | 警报时间 | datetime | |
+FalsePositive | 是否误报 | int | 值为0否，值为1是。 |
+ProcessStatus | 处理状态 | int | 值为0未处理，值为1已处理。 |
+UserStatus | 用户状态 | int | 默认值为0显示，值为1是隐藏状态。 |
+Status | 状态 | int | 默认值为0开启，值为1是关闭状态。 |
+Remark | 备注 | string | |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"Id":1,"SN":"1001 ","ProductName":"挖机","ProductSN":"N1001","ProductLocation":"一楼A区","SensorDevice":"摄像头M1","SensorDeviceSN":"M1001","CategoryId":1,"Description":"前方接近","DescriptionEn":null,"AlarmValue":"0.03m","ConstSite":"工会大厦","Floor":1,"Lon":0.000000,"Lat":0.000000,"Location":"工会大厦东10m","Level":1,"ImageUrl":"/user/01bdce22-ef57-4a74-883b-6528530837bf/e5b6fa68-eec7-4d31-84d9-b745d923ef31.png","VideoUrl":"/user/cad76ed1-62f0-4193-99ca-c658181c3612/4041abda-1e93-471e-8b3a-edb022dcfb74.mp4","Worker":null,"WorkerEn":null,"WorkerNFC":null,"CustomerId":0,"CustomerSN":"6666","CreateTime":"\/Date(1783734942370)\/","UpdateTime":"\/Date(1783734942370)\/","AlarmTime":"\/Date(1784002390497)\/","FalsePositive":0,"ProcessStatus":0,"UserStatus":0,"Status":0,"Remark":""}}
+
+##### alarmEdit.html  【修改警报】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+修改警报：
+1.每个字段必传，Id、FalsePositive、ProcessStatus、UserStatus、Status不能为空，其它的可以为空。
+2.Method：POST
+3.接口地址：域名/api/alarmEdit
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+Id | Id | int | 是 | 否 | 不能为空 |
+FalsePositive | 是否误报 | int | 是 | 否 | 不能为空，值0为否，值1是。 |
+ProcessStatus | 处理状态 | int | 是 | 否 | 不能为空，值0未处理，值1已处理。 |
+UserStatus | 隐藏 | int | 是 | 否 | 不能为空，值0为显示，值1为隐藏。 |
+Status | 状态 | int | 是 | 否 | 不能为空，0开启，1关闭。 |
+Remark | 备注 | string | 是 | 可以 | |
+请求示例： 美观输出
+{"Id":1,"FalsePositive":0,"ProcessStatus":0,"UserStatus":0,"Status":0,"Remark":""}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### alarmUserStatus.html  【批量设置警报隐藏】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量设置警报隐藏/显示：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/alarmUserStatus
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+UserStatus | 用户状态 | int | 是 | 否 | 不能为空，0显示，1隐藏 |
+请求示例： 美观输出
+{"IdArr":"1,2,3","UserStatus":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### alarmStatus.html  【批量设置警报关闭】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量设置警报关闭/显示：
+1.传IdArr不能为空。
+2.Method：POST
+3.接口地址：域名/api/alarmStatus
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+Status | 状态 | int | 是 | 否 | 不能为空，0显示，1关闭 |
+请求示例： 美观输出
+{"IdArr":"1,2,3","Status":0}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### alarmDeletes.html  【批量设置警报删除】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+批量删除警报：
+1.传IdArr不能为空，此接口建议只有后端管理员有删除权限。
+2.Method：POST
+3.接口地址：域名/api/alarmDeletes
+请求字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+IdArr | Id集合 | String | 是 | 否 | 不能为空，注意IdArr中的Id之前是用英文逗号隔开。 |
+请求示例： 美观输出
+{"IdArr":"1,2,3"}
+响应字段：
+字段 | 名称 | 类型 | 说明 |
+ReturnCode | 返回编码 | string | 成功返回SUCCESS，失败返回具体原因 |
+备注：后面如有需要，可调取更多字段。
+响应示例： 美观输出
+{"code":"SUCCESS","message":"OK","data":{"ReturnCode":"SUCCESS"}}
+
+##### WebSocket.html  【WebSocket通用】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+WebSocket通用说明：
+数据格式：json
+数据处理：json数据都要做Encode处理
+字符编码：UTF-8
+鉴权参数：所有接口必须传参数：ApiId和ApiKey，防止黑客攻击系统，防止无效请求增加服务器负载。示例：wss://接口域名/path?ApiId=xxx&ApiKey=xxx
+开放域名：正式上线域名必须录入数据库才有权限请求，防止黑客攻击系统，防止无效请求增加服务器负载。
+传输协议：测试是用ws://方便，正式上线强制wss:// （强制wss://后账号密码可不用再次加密传送）
+状态编号：状态 成功：101 失败：400 未授权：401
+返回编码：code 成功：SUCCESS 错误：FAIL
+具体描述：message 成功：OK ，其它情况具体验证描述
+接口地址：wss://接口域名/path （path为具体的根地址，接口都放在api文件夹下，示例：wss://接口域名/api/alarmWebsocket）
+命名规则：数据库字段使用驼峰命名规则，如：UserName （部分因为缩写或便于阅读例外）。
+握手（连接）示例：
+wss://接口域名/api/alarmWebsocket?ApiId=xxx&ApiKey=xxx
+握手成功或失败返回：
+握手成功 HTTP 状态 101，握手失败，不返回业务数据。
+客户端发心跳示例： 美观输出
+{"Type":"ping","Timestamp": 1728700000000}
+心跳成功服务器端回复示例： 美观输出
+{"Type":"pong","Timestamp": 1728700000000}
+备注：心跳失败判断Type不等于pong即可，心跳失败一般情况是连接断开了，或者网络卡顿，这些情况也无法返回自定义数据。这种情况需等几秒（一般为5秒，主要看服务器和当时网络流畅度）看收到没有，几秒后没收到就需要客户端再次主动重新连接。
+服务器端推送示例： 美观输出
+{ "Type": "alarm","code": "SUCCESS", "data": { "Id": 1, "SN": "1001" } }
+客户端回应
+推送成功立即向服务器端回应，避免重复发起推送。
+推送成功客户端回应示例： 美观输出
+{"Type":"ack","code":"SUCCESS"}
+备注：以上是所有WebSocket接口都有的通用部分，下面的文档不在介绍此部分内容。
+
+##### alarmWebSocket.html  【警报即时推送】
+CMP系统api文档
+港进建机CMP接口文档 I-VISION-CMP-API
+WebSocket警报即时推送：
+1.接口说明：本接口用于前端即时数据统计表（或叫仪表盘、大屏数据可视化等），WebSocket推送数据只推几个关键的字段，然后前端用http请求查询最新内容，这样可以减轻服务器负担。
+2.前端步骤：用户登录--http请求查询数据--WebSocket握手--WebSocket心跳--服务器用WebSocket推送--http请求查询最新数据
+3.接口地址：wss://域名/api/alarmWebSocket
+握手（连接）字段：
+字段 | 名称 | 类型 | 是否必须 | 可否为空 | 说明 |
+CustomerSN | 客户编号 | String | 是 | 否 | 不能为空 |
+Timestamp | 时间戳 | String | 是 | 否 | 不能为空 |
+握手（连接）示例：
+wss://接口域名/api/alarmWebsocket?ApiId=xxx&ApiKey=xxx&CustomerSN=xxx&Timestamp=1697520000
+服务器端回应：
+回应请看通用文档
+心跳：
+心跳请看通用文档
+服务器推送字段：
+字段 | 名称 | 类型 | 说明 |
+Id | Id | int | 主键 |
+SN | 编号 | string | 警报编号 |
+CategoryId | 分类Id | int | 产品分类Id |
+CustomerId | 客户Id | int | 客户Id |
+CustomerSN | 客户编号 | string | 客户编号 |
+备注：后面如有需要，可调取更多字段。
+服务器推送示例： 美观输出
+{"Type": "alarm","code":"SUCCESS","data":{"Id":1,"SN":"1001","CategoryId":1,"CustomerId":0,"CustomerSN":"1001"}}
+客户端回应
+客户端回应请看通用文档
+

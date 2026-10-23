@@ -423,19 +423,40 @@ export async function demoAccountUpdateSetting(payload: {
 }
 
 /**
- * 注册页用的账号占用校验（对应接口 `/userUnRegister`）
- * 返回 true = 可以注册；false = 系统保留/已存在
+ * 注册页用的账号校验（演示环境）
+ *
+ * 对齐真实后端的**两段判断**：
+ *   ① `/userSingle { UserName }` 查重 → 已存在 = 'taken'
+ *   ② `/userUnRegister { UserName }` 查保留名 → Valid=No = 'reserved'
+ * 返回 'ok' 才能注册。
  */
-export async function demoCheckAccountAvailable(UserName: string): Promise<boolean> {
+export async function demoCheckAccount(UserName: string): Promise<'ok' | 'taken' | 'reserved'> {
   await delay(200)
   const name = UserName.trim().toLowerCase()
-  if (!name) return false
+  if (!name) return 'reserved'
   // 演示环境：占位几个"系统保留"的名字，方便看到失败分支
-  if (['admin', 'vision', 'root', 'system'].includes(name)) return false
-  return !accounts.some((a) => a.UserName.toLowerCase() === name)
+  if (['admin', 'vision', 'root', 'system'].includes(name)) return 'reserved'
+  return accounts.some((a) => a.UserName.toLowerCase() === name) ? 'taken' : 'ok'
+}
+
+/**
+ * 注册页用的**邮箱**占用校验（对应接口 `/userSingle` 按 Email 查询）
+ * 返回 true = 可用（没被占用）；false = 该邮箱已绑过账号
+ *
+ * 演示环境的"已占用邮箱"从账号列表里取，另外额外占位两个，
+ * 方便直接看到「該郵箱已被註冊」的失败分支。
+ */
+export async function demoCheckEmailAvailable(Email: string): Promise<boolean> {
+  await delay(200)
+  const email = Email.trim().toLowerCase()
+  if (!email) return false
+  const reserved = ['taken@cmp.com', 'test@cmp.com']
+  if (reserved.includes(email)) return false
+  return !accounts.some((a) => (a.Email || '').trim().toLowerCase() === email)
 }
 
 /** 注册（对应接口 `/userRegister`）：演示模式下真的会出现在账号列表里 */
+
 export async function demoRegister(payload: {
   UserName: string
   Email: string

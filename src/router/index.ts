@@ -3,6 +3,7 @@ import { MODULES } from '@/config/menu'
 import { useUserStore } from '@/store/user'
 import { useMenuStore } from '@/store/menu'
 import { checkPermission } from '@/config/permission'
+import { checkPermissionApi, type ServerPermission } from '@/api/auth'
 
 // 路由懒加载：布局 / 兜底页只引一次，业务页面走 menu 配置动态展开
 const MainLayout = () => import('@/layout/MainLayout.vue')
@@ -32,7 +33,9 @@ function buildModuleRoutes(): RouteRecordRaw[] {
           menuTitle: item.title,
           title: item.pageTitle || item.title,
           /** 访问该页所需的权限点；不填 = 登录后即可访问 */
-          permission: item.permission
+          permission: item.permission,
+          /** 该页还需要后端确认的服务端角色（/api/permission），取模块级配置 */
+          serverPermission: mod.serverPermission
         },
         // 有真实页面时，把菜单里声明的静态 props 透传给组件（例如警报页的 categoryId）
         props: component ? (item.props ?? undefined) : { title: item.title, desc: `${mod.title} / ${item.title}` }
@@ -75,13 +78,6 @@ const routes: RouteRecordRaw[] = [
       },
       ...buildModuleRoutes(),
       {
-        // 无权限页放在主框架内：顶栏和菜单还在，用户可以自己点回有权限的模块
-        path: 'forbidden',
-        name: 'forbidden',
-        component: () => import('@/views/error/Forbidden.vue'),
-        meta: { public: true, title: '无访问权限' }
-      },
-      {
         /**
          * 动态菜单兜底路由
          * ------------------------------------------------------------
@@ -101,9 +97,15 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
-    // 顶层兜底：万一有布局外的跳转也能落到同一页面
+    /**
+     * 403 独立落地页（主框架之外）
+     * ------------------------------------------------------------
+     * 后端 2026-10-21 的要求：「没权限就重定向到一个单独独立落地页，
+     * 让其重新登入提权」。所以这里刻意**不放在 Layout 里** ——
+     * 没有顶栏、没有侧边栏、没有菜单，整屏就是这一页。
+     */
     path: '/403',
-    name: 'forbidden-standalone',
+    name: 'forbidden',
     component: () => import('@/views/error/Forbidden.vue'),
     meta: { public: true, title: '无访问权限' }
   },
@@ -128,6 +130,49 @@ const APP_TITLE = import.meta.env.VITE_APP_TITLE || 'CMP3.0 Admin'
  * 注意：它只影响前端路由，不改变任何安全边界（前端本来就不承担鉴权）。
  */
 const USE_AUTH = import.meta.env.VITE_USE_AUTH !== 'false'
+
+/**
+ * 服务端权限查询结果缓存（本会话内有效）
+ *
+ * 为什么要缓存：
+ *   `/api/permission` 是"再问一次后端"，每跳一页都打一次既慢又浪费；
+ *   而权限在登录期间不会变（改权限要重新登录才生效），缓存到刷新页面即失效。
+ *
+ * 为什么失败也缓存：
+ *   后端明确拒绝（400/401/403/405）是稳定结论，没必要反复试。
+ */
+const serverPermCache = new Map<ServerPermission, boolean>()
+/** 缓存归属的登录用户 Id：换人登录（或退出后换号）时缓存必须作废 */
+let serverPermCacheOwner = ''
+
+async function ensureServerPermission(permission: ServerPermission): Promise<boolean> {
+  // 用登录用户 Id 做缓存归属标记，避免 A 退出、B 登录后还复用 A 的结论
+  const owner = String(useUserStore().userInfo?.userId ?? '')
+  if (owner !== serverPermCacheOwner) {
+    serverPermCache.clear()
+    serverPermCacheOwner = owner
+  }
+  const cached = serverPermCache.get(permission)
+  if (cached !== undefined) return cached
+
+  const verdict = await checkPermissionApi(permission)
+
+  // 后端没给出可判读的结论（302 跳它自己的登录页 / 空响应 / 连不上）：
+  // 不能当成"你没权限"，否则后端一没实现好，管理员也进不去。
+  // 也不缓存 —— 后端修好后刷新页面就能自动恢复成真判定。
+  if (verdict === 'unknown') {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[permission] /api/permission 未给出明确结论（可能后端仍在查 Session 而非 Authorization 头），` +
+        `本次按「不阻断」放行：${permission}`
+    )
+    return true
+  }
+
+  const granted = verdict === 'granted'
+  serverPermCache.set(permission, granted)
+  return granted
+}
 
 /**
  * ============================================================
@@ -175,8 +220,16 @@ router.beforeEach(async (to) => {
 
   // ---------- ③ 授权 ----------
   if (!userStore.hasPermission(to.meta?.permission as string | string[] | undefined)) {
-    // 注意跳的是主框架内的 /forbidden，而不是登录页：用户是登录着的，只是没这个权限
-    return { path: '/forbidden' }
+    // 注意跳的是独立落地页 /403，而不是登录页：用户是登录着的，只是没这个权限
+    return { path: '/403' }
+  }
+
+  // ---------- ③-b 服务端授权（再问一次后端） ----------
+  // 前端权限点能改 JS 绕过，这里的结果来自后端 `/api/permission`。
+  // 每次会话只问一次（结果缓存在内存里），不会每跳一页就打一次接口。
+  const serverPermission = to.meta?.serverPermission as ServerPermission | undefined
+  if (serverPermission && !(await ensureServerPermission(serverPermission))) {
+    return { path: '/403' }
   }
 
   // ---------- 菜单（数据层，放在授权之后） ----------

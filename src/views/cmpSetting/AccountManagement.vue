@@ -96,9 +96,13 @@
         <el-form-item :label="t('account.password')" prop="Password">
           <el-input v-model="createForm.Password" type="password" show-password />
         </el-form-item>
-        <el-form-item :label="t('account.mobile')">
-          <el-input v-model="createForm.Tele" />
-        </el-form-item>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          class="create-note"
+          :title="t('account.createNote')"
+        />
       </el-form>
       <template #footer>
         <el-button @click="createVisible = false">{{ t('common.cancel') }}</el-button>
@@ -200,7 +204,7 @@ async function handleReset() {
 const createVisible = ref(false)
 const saving = ref(false)
 const createFormRef = ref<FormInstance>()
-const createForm = reactive({ UserName: '', Email: '', Password: '', Tele: '' })
+const createForm = reactive({ UserName: '', Email: '', Password: '' })
 
 const createRules = computed<FormRules>(() => ({
   UserName: [{ required: true, message: t('account.inputAccount'), trigger: 'blur' }],
@@ -215,7 +219,6 @@ function openCreate() {
   createForm.UserName = ''
   createForm.Email = ''
   createForm.Password = ''
-  createForm.Tele = ''
   createVisible.value = true
 }
 
@@ -224,12 +227,17 @@ async function submitCreate() {
   if (!valid) return
   saving.value = true
   try {
-    await createAccount({ ...createForm })
+    await createAccount({
+      UserName: createForm.UserName,
+      Email: createForm.Email,
+      Password: createForm.Password
+    })
     ElMessage.success(t('common.saveSuccess'))
     createVisible.value = false
     await table.load()
   } catch {
-    ElMessage.error(t('common.saveFailed'))
+    // 后端的失败原因（如「邮箱已被注册」「账号已存在」）已在 request 拦截器里弹过，
+    // 这里不再叠加一句通用的「保存失败」，避免一次操作弹两个提示
   } finally {
     saving.value = false
   }
@@ -391,6 +399,12 @@ table.load().catch(() => void 0)
 
 .edit-tip {
   margin-bottom: 12px;
+}
+
+.create-note {
+  margin-left: 110px; // 与表单控件左边界对齐（label-width: 110px）
+  width: calc(100% - 110px);
+  margin-bottom: 0;
 }
 
 .w-full {

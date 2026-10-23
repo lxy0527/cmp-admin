@@ -55,7 +55,6 @@
       <div class="filter-actions">
         <el-button type="primary" :icon="Search" @click="handleQuery">{{ t('common.query') }}</el-button>
         <el-button :icon="Refresh" @click="handleReset">{{ t('common.reset') }}</el-button>
-        <el-button type="warning" :icon="Download" @click="handleExport">{{ t('common.export') }}</el-button>
       </div>
     </div>
 
@@ -141,8 +140,8 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { Download, Refresh, Search } from '@element-plus/icons-vue'
-import { exportPermitWorkApi, getPermitWorkOptions, getPermitWorkPageApi } from '@/api/permitWork'
+import { Refresh, Search } from '@element-plus/icons-vue'
+import { getPermitWorkOptions, getPermitWorkPageApi } from '@/api/permitWork'
 import type { PermitWorkQuery, PermitWorkRow } from '@/mock'
 
 defineOptions({ name: 'PermittedToWork' })
@@ -217,11 +216,6 @@ function handleReset() {
 function handleSizeChange() {
   query.pageNum = 1
   fetchData()
-}
-
-async function handleExport() {
-  await exportPermitWorkApi({ ...query })
-  ElMessage.success(t('permitWork.exportPlaceholder'))
 }
 
 onMounted(fetchData)

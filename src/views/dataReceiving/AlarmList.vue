@@ -77,15 +77,22 @@
       <div class="table-head">
         <span class="card-title">{{ pageTitle }}</span>
         <div class="batch-actions">
+          <el-tooltip v-if="writeDenied" :content="t('account.permissionDenied')" placement="top">
+            <span class="denied-hint">{{ t('account.permissionDenied') }}</span>
+          </el-tooltip>
           <span class="selected-text">
             {{ t('common.selected') }}: {{ selectedIds.length }} {{ t('common.records') }}
           </span>
-          <el-button size="small" @click="handleBatchHide(1)">{{ t('alarm.actions.markHide') }}</el-button>
-          <el-button size="small" @click="handleBatchHide(0)">{{ t('alarm.actions.revokeHide') }}</el-button>
-          <el-button size="small" type="warning" plain @click="handleBatchStatus(1)">
+          <el-button size="small" :disabled="!canWrite" @click="handleBatchHide(1)">
+            {{ t('alarm.actions.markHide') }}
+          </el-button>
+          <el-button size="small" :disabled="!canWrite" @click="handleBatchHide(0)">
+            {{ t('alarm.actions.revokeHide') }}
+          </el-button>
+          <el-button size="small" type="warning" plain :disabled="!canWrite" @click="handleBatchStatus(1)">
             {{ t('alarm.actions.close') }}
           </el-button>
-          <el-button size="small" type="success" plain @click="handleBatchStatus(0)">
+          <el-button size="small" type="success" plain :disabled="!canWrite" @click="handleBatchStatus(0)">
             {{ t('alarm.actions.open') }}
           </el-button>
           <!-- 删除：文档明确只有后端管理员（Role=1）有权限，前端这里只做显示控制 -->
@@ -94,7 +101,7 @@
             size="small"
             type="danger"
             plain
-            :disabled="!selectedIds.length"
+            :disabled="!canWrite || !selectedIds.length"
             @click="handleBatchDelete"
           >
             {{ t('alarm.actions.delete') }}
@@ -182,7 +189,13 @@
             <el-button link type="primary" size="small" @click="openMedia(row as AlarmRow)">
               {{ row.VideoUrl ? t('alarm.actions.viewVideo') : t('alarm.fields.imageUrl') }}
             </el-button>
-            <el-button link type="primary" size="small" @click="openEdit(row as AlarmRow)">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              :disabled="!canWrite"
+              @click="openEdit(row as AlarmRow)"
+            >
               {{ t('common.edit') }}
             </el-button>
           </template>
@@ -309,7 +322,7 @@
  *   - **分页走前端**（后端明确不做分页，一次返回全量）
  *   所以点"查询"会重新请求，翻页不会。
  */
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
@@ -323,6 +336,7 @@ import {
   updateAlarm,
   type AlarmRow
 } from '@/api/alarm'
+import { checkPermissionApi } from '@/api/auth'
 import { useTableList } from '@/composables/useTableList'
 import { P } from '@/config/permission'
 import { formatServerDateTime } from '@/utils/format'
@@ -335,6 +349,28 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+
+/**
+ * 能不能改这条警报 —— 由**后端**说了算，不问前端权限点
+ *
+ * 文档：`CustomerAdmin`（客户管理员）才能改警报状态；超管天然包含。
+ * 这里在页面挂载时问一次 `/api/permission`，没权限就把所有写操作按钮禁掉，
+ * 免得用户点了才失败（后端仍会拒绝，这只是提前告知）。
+ *
+ * 默认 true：先在"允许"状态，后端确认没权限后再禁 ——
+ * 反过来的话有权限的用户会先看到一个灰按钮闪一下，很别扭。
+ */
+const canWrite = ref(true)
+const writeDenied = ref(false)
+
+onMounted(async () => {
+  // 只有后端**明确拒绝**才禁用写操作；
+  // 「问不出结论」（302 跳登录页 / 空响应 / 连不上）保持可用，
+  // 否则后端一没实现好，所有人都变成只读。
+  const verdict = await checkPermissionApi('CustomerAdmin')
+  canWrite.value = verdict !== 'denied'
+  writeDenied.value = verdict === 'denied'
+})
 
 /** categoryId → i18n key 后缀（只为取标题用） */
 const MENU_KEY_BY_CATEGORY: Record<number, string> = {
@@ -801,6 +837,16 @@ watch(
 .selected-text {
   font-size: 12px;
   color: $text-secondary;
+}
+
+.denied-hint {
+  font-size: 12px;
+  color: $text-secondary;
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: help;
 }
 
 .alarm-table {

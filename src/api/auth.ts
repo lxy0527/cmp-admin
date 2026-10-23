@@ -7,11 +7,11 @@
  *
  * 后端接口就绪后的改法：删掉 USE_MOCK 那一支即可，函数签名和返回类型都不用动。
  */
-import { request, USER_TOKEN_KEY, authHeader } from './request'
+import { request, USER_TOKEN_KEY, authHeader, isApiSuccess } from './request'
 import { storage } from '@/utils/storage'
 import { USE_MOCK, mockGetUserInfo, mockLogin, mockLogout } from '@/mock'
 import type { LoginParams, UserInfo } from '@/mock'
-import { DEMO_MODE, demoCheckAccountAvailable, demoRegister } from '@/demo'
+import { DEMO_MODE, demoCheckAccount, demoCheckEmailAvailable, demoRegister } from '@/demo'
 
 // 类型统一从 mock 转发（mock 与真实接口字段结构刻意保持一致，方便直接替换）
 export type { LoginParams, UserInfo }
@@ -111,13 +111,23 @@ function readCachedUserInfo(): UserInfo | null {
   }
 }
 
-/** 退出登录：POST /auth/logout（前端不依赖它的成败，见 store/user.ts 的 logout） */
+/**
+ * 退出登录。
+ *
+ * ⚠️ **后端没有 logout 接口**（接口文档 48 页里没有这一项）。
+ * 所以真实模式下这里**不打任何网络请求** —— 之前这里写的是
+ * `POST /auth/logout`，真实模式点「退出登錄」会 404：
+ * 控制台抛 uncaught AxiosError，右上角还弹一个红色
+ * 「Request failed with status code 404」。
+ *
+ * 前端能做的只有把本地凭据清干净（由 store/user.ts 的 logout/finally 负责）。
+ * token 在服务端何时失效、要不要做黑名单，属于后端的事；
+ * 等他们真给了接口，在这里补一行 request 即可。
+ */
 export async function logoutApi(): Promise<void> {
   if (USE_MOCK) {
     await mockLogout()
-    return
   }
-  await request({ url: '/auth/logout', method: 'post' })
 }
 
 /* ============================================================
@@ -203,19 +213,144 @@ export async function changePasswordApi(
   })
 }
 
+/** 账号校验结论 */
+export type AccountCheck = 'ok' | 'taken' | 'reserved'
+
 /**
- * 校验账号是否可用（能不能注册）
- * 对应接口：POST /api/userUnRegister  →  data.Valid === 'Yes' 才允许注册
- * @returns true = 可注册
+ * 校验账号能否用来注册 —— 两件事都要查，缺一不可
+ *
+ * 后端 2026-10-21 新增了两个专用校验接口（文档 `verifyUserName.html` / `verifyEmail.html`）：
+ *   - `POST /api/verifyUserName { UserName }` → `data.Valid`：Yes=可注册，No=账号已被注册
+ *   - `POST /api/verifyEmail    { Email }`    → `data.Valid`：Yes=可注册，No=邮箱已被注册
+ *
+ * 但 `verifyUserName` 只查**账号表**，查不出「系统保留名单」（`userUnRegister` 那张表），
+ * 所以账号可用时还要再问一次 `userUnRegister`，否则 `vision`/`root` 这类保留名会漏过去。
+ *
+ * 实测（真实后端）：
+ *   verifyUserName: user01→No  admin→No  zzz_brand_new_2026→Yes
+ *   userUnRegister: user01→Yes admin→No  zzz_brand_new_2026→Yes
+ *
+ * @returns 'ok' 可注册 / 'taken' 已被注册 / 'reserved' 系统保留名
  */
-export async function checkAccountAvailableApi(UserName: string): Promise<boolean> {
-  if (DEMO_MODE) return demoCheckAccountAvailable(UserName)
+export async function checkAccountApi(UserName: string): Promise<AccountCheck> {
+  if (USE_MOCK || DEMO_MODE) return demoCheckAccount(UserName)
+
+  // ① 是否已被注册：POST /api/verifyUserName → Valid='No' 表示已被注册
+  const { data: nameData } = await request<{ Valid: string }>({
+    url: '/verifyUserName',
+    method: 'post',
+    data: { UserName }
+  })
+  if (nameData?.Valid !== 'Yes') return 'taken'
+
+  // ② 是否系统保留名：Valid === 'Yes' 才允许注册
+  //    （`verifyUserName` 只查账号表，查不出「系统保留名单」，所以要单独再问一次）
   const { data } = await request<{ Valid: string }>({
     url: '/userUnRegister',
     method: 'post',
     data: { UserName }
   })
+  return data?.Valid === 'Yes' ? 'ok' : 'reserved'
+}
+
+/**
+ * 校验**邮箱**是否已被占用（一个邮箱只能绑一个账号）
+ *
+ * 后端 2026-10-21 新增专用接口（文档 `verifyEmail.html`）：
+ *   POST /api/verifyEmail { Email } → `data.Valid`：Yes=可注册，No=邮箱已被注册
+ *
+ * ⚠️ 之前借用 `/api/userSingle { Email }` 有两个毛病，现在都解决了：
+ *   1. 命中时会返回**整个用户对象**（含姓名/手机号）—— 查重根本用不到，属信息暴露；
+ *   2. 靠"接口报错"判断有没有人用，语义反着来，容易误判。
+ *
+ * 真正的把关仍在**后端**（`Email` 唯一索引 + `/api/email` 发信前校验 +
+ * `/api/userRegister` 提交时再校验）。前端查重只为了即时提示，
+ * 查不到/查失败都不能拦住注册，兜底交给后端。
+ *
+ * @returns true = 可用（没被占用）
+ */
+export async function checkEmailAvailableApi(Email: string): Promise<boolean> {
+  if (USE_MOCK || DEMO_MODE) return demoCheckEmailAvailable(Email)
+  const { data } = await request<{ Valid: string }>({
+    url: '/verifyEmail',
+    method: 'post',
+    data: { Email }
+  })
   return data?.Valid === 'Yes'
+}
+
+/**
+ * 服务端权限校验用的角色值（文档 `permission.html`）
+ * - `Admin`         超级管理员（admin 账号）
+ * - `CustomerAdmin` 客户管理员（能改自己关联公司的资料、能改警报状态）
+ *
+ * 文档注明：**admin 账号发 `CustomerAdmin` 也会通过**（超管包含客户管理员能力）。
+ */
+export type ServerPermission = 'Admin' | 'CustomerAdmin'
+
+/**
+ * 服务端权限判定的三种结论
+ * - `granted` 后端明确给了 SUCCESS
+ * - `denied`  后端明确拒绝（403 这类标准语义）
+ * - `unknown` 后端没给出可判读的结论（302 跳登录页 / 空响应 / 连不上）
+ *              —— 不能当成"你没权限"，否则后端一没实现好，管理员也进不去
+ */
+export type PermissionVerdict = 'granted' | 'denied' | 'unknown'
+
+/**
+ * 服务端鉴权：POST /api/permission
+ *
+ * 文档原话：
+ *   - 传登录 token → 后端验证通过 → 返回 JSON
+ *   - **验证失败不返回 JSON（避免被篡改），只返回 HTTP 状态码**：401 / 403 / 400 / 405
+ *
+ * 实测（真实后端，2026-10-21，同一天同一接口对照两个账号，逐字节看原始响应）：
+ *
+ * | 请求 | 响应 |
+ * |---|---|
+ * | admin 的 token + `{"Permission":"Admin"}` | `200 {"code":"SUCCESS","data":{"ReturnCode":"SUCCESS"}}` |
+ * | user01 的 token + `{"Permission":"Admin"}` | `302 Found` → `location: /Account/Login?ReturnUrl=%2fapi%2fpermission`，body 是 `Object moved` 的 HTML |
+ * | 任意 token + `{"Permission":"Whatever"}` | `403`（无 body） |
+ *
+ * **结论：302 就是后端「没有该权限」的失败通道，不是"后端没实现好"。**
+ * 它确实是旧 MVC 那套 `Response.Redirect("~/Account/Login")` 的写法（语义上像"你没登录"），
+ * 但既然同一时刻 admin 能拿到 200 SUCCESS，就说明它**认了 `Authorization` 头**，
+ * 只是用 302 来表达"拒绝"。所以前端必须把这种情况判成**拒绝**，不能放行。
+ *
+ * 浏览器/axios 会自动跟随这个 302 → 落到本站的 `/Account/Login`（前端没有这个路由）→
+ * 被 SPA 回退成 `index.html` → 表现为「接口返回了一坨 HTML」，
+ * 于是由 `api/request.ts` 的 HTML 检测拦成 `接口未授权` 错误。
+ *
+ * ⚠️ 用 `silent: true`：这个请求失败属于"没权限"，不该弹"域名未授权"，
+ *    更不该因为 401 就把人踢下线（见 api/request.ts 的 silent 分支）。
+ */
+export async function checkPermissionApi(Permission: ServerPermission): Promise<PermissionVerdict> {
+  if (USE_MOCK || DEMO_MODE) return 'granted'
+  try {
+    const res = await request<{ ReturnCode?: string }>({
+      url: '/permission',
+      method: 'post',
+      data: { Permission },
+      silent: true
+    })
+    const ok = isApiSuccess(res.code) && (res.data?.ReturnCode ?? 'SUCCESS') === 'SUCCESS'
+    // 200 但没有可判读的 JSON（空响应体等）→ 问不出结论
+    return ok ? 'granted' : 'unknown'
+  } catch (e) {
+    const status = (e as { response?: { status?: number } })?.response?.status
+
+    // 401/403 是有标准语义的明确拒绝：未认证 / 无权限
+    if (status === 401 || status === 403) return 'denied'
+
+    // 302 → 跳它自己的登录页，被拦截器拦成"接口未授权"。
+    // 实测同一请求 admin 拿 200 SUCCESS、user01 拿 302 → 这就是"无权限"的失败通道。
+    const msg = String((e as Error)?.message || '')
+    if (msg.includes('接口未授权')) return 'denied'
+
+    // 400/405（契约没对齐）、空响应、超时断网 → 问不出结论，不阻断，
+    // 否则后端一抖整站进不去。这不是"授予权限"，页面里每个写操作后端仍会各自校验。
+    return 'unknown'
+  }
 }
 
 /**
@@ -239,10 +374,4 @@ export async function registerApi(params: RegisterParams, verifyToken?: string):
   })
 }
 
-/**
- * 找回密码 —— **接口不存在**，这里故意不实现请求。
- * 保留这个函数是为了让页面有个明确的落点，等后端给了接口只要填这里。
- */
-export async function requestPasswordResetApi(_account: string): Promise<never> {
-  throw new Error('NO_API')
-}
+

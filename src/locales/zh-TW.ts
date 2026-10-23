@@ -40,6 +40,7 @@ export default {
     deleteFailed: '刪除失敗',
     loadFailed: '加載失敗',
     retry: '重試',
+    saveSuccess: '保存成功',
     saveFailed: '保存失敗',
     formValidationFailed: '請檢查表單填寫是否正確',
     warmTip: '溫馨提示',
@@ -173,13 +174,21 @@ export default {
     submitChangePwd: '確認修改',
     verifyCodeLength: '驗證碼為 6 位',
     changePwdSuccess: '密碼已修改，請用新密碼登錄',
-    changePwdFailed: '修改失敗',    accountReserved: '該帳戶為系統保留或已被佔用，請換一個',
+    changePwdFailed: '修改失敗',
+    accountReserved: '該帳戶為系統保留名稱，不可使用',
+  accountTaken: '該帳戶已被註冊，請更換其它帳戶',
+    emailTaken: '該郵箱已被註冊，請更換其它郵箱',
+    emailNotRegistered: '該郵箱尚未註冊，請確認後重試',
+    agreementAgree: '我已閱讀並同意',
+    agreementAnd: '與',
+    agreementTerms: '《用戶協議》',
+    agreementPrivacy: '《隱私政策》',
+    agreementRequired: '請先閱讀並勾選同意《用戶協議》與《隱私政策》',
+    agreementPlaceholder:
+      '（佔位內容）本協議的正式條款尚未由客戶／法務提供。前端已把入口、勾選校驗與彈窗全部做好，正式文本到位後只需替換 src/config/agreement.ts 即可，無需改動頁面。',
+    agreementVersion: '版本',
     registerSuccess: '註冊成功，請使用新帳號登錄',
-    registerFailed: '註冊失敗',
-    forgotNoApi:
-      '後端尚未提供「找回密碼」接口（接口文檔中沒有此項），本頁僅為界面預留，不會真的發送郵件。',
-    forgotHint: '如需重設密碼，請聯繫管理員在後台處理。',
-    forgotSubmitted: '當前環境無法自助找回，請聯繫管理員。'
+    registerFailed: '註冊失敗'
   },
 
   login: {
@@ -191,7 +200,10 @@ export default {
     usernameRequired: '請輸入用戶名',
     passwordRequired: '請輸入密碼',
     failed: '登錄失敗',
-    demoHint: '演示帳號：admin / 123456'
+    demoHint: 'admin / 123456（管理員）・viewer / 123456（普通帳號）',
+    realTestTitle: '測試帳號 · 連真實後端',
+    demoTitle: '演示模式 · 內置帳號',
+    demoNote: '真實後端帳號（如 user01）需在公司內網環境登入，本站為內置演示數據。'
   },
 
   /** 頂欄資訊條（目前是靜態展示，接接口後值再換） */
@@ -242,7 +254,6 @@ export default {
       company: '許可批准申請',
       dateRange: '申請日期'
     },
-    exportPlaceholder: '導出任務已提交（佔位，等接口就緒後接真實導出）',
     mockNote: '此模塊後端尚未提供接口（後端文檔問題 2 已確認），目前為演示數據。'
   },
 
@@ -487,7 +498,9 @@ export default {
     enableSuccess: '啟用成功',
     disableSuccess: '禁用成功',
     passwordMismatch: '兩次輸入的密碼不一致',
-    passwordNoSpace: '密碼不能包含首尾空格'
+    passwordNoSpace: '密碼不能包含首尾空格',
+    createNote: '管理員新增帳號不需Email驗證碼；手機號等資料請建立後在「編輯」裡補填。',
+    permissionDenied: '目前帳號沒有此操作權限（後端已拒絕）'
   },
 
   /** 照片牆檔案管理（＝相冊／分類，不是「報警信息」） */
@@ -615,5 +628,14 @@ export default {
       '地址清單暫為靜態配置（舊站取清單的接口在本後端不存在，實測 404），後端提供新接口後改為動態拉取。',
     legacyNote:
       '完整版《CMP 開放數據接收 API 接口文檔 v1.6.0》（含 6 個告警推送 + 配置同步 + 統計同步）目前只在舊站，需後端提供。'
+  },
+  forbidden: {
+    code: '403',
+    title: '目前帳號沒有此頁面的權限',
+    hint: '如果這個頁面是你工作需要的，請聯絡管理員為帳號開通對應權限。',
+    reloginHint: '如果剛才是用其他帳號登入的，可以切換帳號重新登入。',
+    backHome: '返回首頁',
+    backPrev: '返回上一頁',
+    relogin: '切換帳號重新登入'
   }
 }

@@ -18,7 +18,7 @@
 import { request } from './request'
 import { toPaged, slicePage } from './paging'
 import type { PagedData } from '@/composables/useTableList'
-import { getSessionUserId, isAdmin } from '@/utils/session'
+import { isAdmin } from '@/utils/session'
 import {
   DEMO_MODE,
   demoArchiveCreate,
@@ -52,11 +52,11 @@ export interface PhotoArchiveRow {
  * 档案列表
  * ⚠️ 文档要求按角色分流：
  *   Role=1 后端管理员 → `/album`         看全部档案
- *   Role=0 普通账号   → `/albumByUser`   只看自己账号下的档案（必须带 UserId）
+ *   Role=0 普通账号   → `/albumByUser`   只看自己账号下的档案
  * 分流放在 api 层，页面不用感知。
  */
 export async function getArchiveList(SearchTitle = ''): Promise<PhotoArchiveRow[]> {
-  if (!isAdmin()) return getArchiveListByUser(getSessionUserId(), SearchTitle)
+  if (!isAdmin()) return getArchiveListByUser(SearchTitle)
   if (DEMO_MODE) return demoArchiveList(SearchTitle)
   const { data } = await request<PhotoArchiveRow[]>({
     url: '/album',
@@ -66,16 +66,18 @@ export async function getArchiveList(SearchTitle = ''): Promise<PhotoArchiveRow[
   return Array.isArray(data) ? data : []
 }
 
-/** 按登录账号查档案：POST /api/albumByUser（普通账号用） */
-export async function getArchiveListByUser(
-  UserId: number,
-  SearchTitle = ''
-): Promise<PhotoArchiveRow[]> {
+/**
+ * 按登录账号查档案：POST /api/albumByUser（普通账号用）
+ *
+ * ⚠️ 不再传 `UserId`。2026-10-21 后端明确：byUser 系列用 token 验证，
+ * UserId「传不传都没关系，只是用不到」。
+ */
+export async function getArchiveListByUser(SearchTitle = ''): Promise<PhotoArchiveRow[]> {
   if (DEMO_MODE) return demoArchiveList(SearchTitle)
   const { data } = await request<PhotoArchiveRow[]>({
     url: '/albumByUser',
     method: 'post',
-    data: { UserId, ...(SearchTitle ? { SearchTitle } : {}) }
+    data: SearchTitle ? { SearchTitle } : {}
   })
   return Array.isArray(data) ? data : []
 }
@@ -208,7 +210,7 @@ export async function getArchivePage(params: {
   SearchTitle?: string
 }): Promise<PagedData<PhotoArchiveRow>> {
   if (!isAdmin()) {
-    return getArchiveByUserPage({ ...params, UserId: getSessionUserId() })
+    return getArchiveByUserPage(params)
   }
   const keyword = (params.SearchTitle || '').trim()
   if (DEMO_MODE) {
@@ -227,12 +229,11 @@ export async function getArchivePage(params: {
   return toPaged(res)
 }
 
-/** 普通账号分页查询自己的档案：POST /api/albumByUser（需要 token） */
+/** 普通账号分页查询自己的档案：POST /api/albumByUser（身份由 token 决定，不传 UserId） */
 export async function getArchiveByUserPage(params: {
   page: number
   pageSize: number
   SearchTitle?: string
-  UserId: number
 }): Promise<PagedData<PhotoArchiveRow>> {
   const keyword = (params.SearchTitle || '').trim()
   if (DEMO_MODE) {
@@ -243,7 +244,6 @@ export async function getArchiveByUserPage(params: {
     url: '/albumByUser',
     method: 'post',
     data: {
-      UserId: params.UserId,
       page: Math.max(0, params.page - 1),
       pagesize: params.pageSize,
       ...(keyword ? { SearchTitle: keyword } : {})

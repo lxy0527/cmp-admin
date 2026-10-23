@@ -57,8 +57,13 @@ export default defineConfig(({ command, mode }) => {
       }
     },
     server: {
-      // 不写 host：跟隔壁 web-portal 保持一致，走 Vite 默认值（终端打印 http://localhost:5173）
-      // ⚠️ 必须用 localhost 访问，不能用 127.0.0.1 —— 后端域名白名单里只录了 localhost:5173
+      /**
+       * host: true = 监听 0.0.0.0，局域网内其他机器可以直接打开
+       *   例：后端同事访问 http://192.168.77.6:5173 看到的就是我本地最新的代码。
+       * 注意：暴露到局域网后，后端按 Origin/Referer 做域名白名单，
+       *   而白名单里只录了 http://localhost:5173，所以下面代理把这两个头改写掉。
+       */
+      host: true,
       port: 5173,
       // 启动后自动打开浏览器，跟隔壁 web-portal 一样；不想自动开就改回 false
       open: true,
@@ -72,7 +77,22 @@ export default defineConfig(({ command, mode }) => {
            */
           headers: {
             ApiId: apiId,
-            ApiKey: apiKey
+            ApiKey: apiKey,
+            /**
+             * 后端用 Origin/Referer 判域名白名单，只认 http://localhost:5173。
+             * 用局域网 IP（192.168.77.6:5173）打开时，浏览器会带
+             * Origin: http://192.168.77.6:5173 → 后端回 403「域名未授权」。
+             * 这里统一改写成已白名单的 localhost。
+             *
+             * 必须写在 headers 里：实测 configure/proxyReq.setHeader 对这两个头
+             * 不生效（会被原请求头覆盖），只有 http-proxy 的 headers 选项可靠。
+             * 只作用于 dev server 的代理，生产构建不受影响。
+             *
+             * 更正规的做法是让后端把 http://192.168.77.6:5173 加进白名单，
+             * 那样这两行就可以删掉。
+             */
+            Origin: 'http://localhost:5173',
+            Referer: 'http://localhost:5173/'
           }
         }
       }

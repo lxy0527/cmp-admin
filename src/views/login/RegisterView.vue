@@ -17,12 +17,13 @@
             @blur="checkAccount"
           />
         </el-form-item>
-        <el-form-item label="Email" prop="Email">
+        <el-form-item label="Email" prop="Email" :error="emailError">
           <el-input
             v-model="form.Email"
             size="large"
             placeholder="name@example.com"
             :prefix-icon="Message"
+            @blur="onEmailBlur"
           />
         </el-form-item>
         <el-form-item :label="t('authPage.password')" prop="Password">
@@ -70,6 +71,20 @@
         </el-form-item>
       </el-form>
 
+      <!-- 用户协议勾选：条款正文在 src/config/agreement.ts，点击链接弹窗查看 -->
+      <div class="agreement-row">
+        <el-checkbox v-model="agreed" size="small">
+          <span class="agreement-text">{{ t('authPage.agreementAgree') }}</span>
+        </el-checkbox>
+        <button type="button" class="agreement-link" @click="openAgreement('terms')">
+          {{ t('authPage.agreementTerms') }}
+        </button>
+        <span class="agreement-text">{{ t('authPage.agreementAnd') }}</span>
+        <button type="button" class="agreement-link" @click="openAgreement('privacy')">
+          {{ t('authPage.agreementPrivacy') }}
+        </button>
+      </div>
+
       <el-button class="auth-btn" type="primary" size="large" :loading="loading" @click="handleSubmit">
         {{ t('authPage.submitRegister') }}
       </el-button>
@@ -80,6 +95,27 @@
         </el-button>
       </div>
     </div>
+
+    <!-- 协议正文弹窗 -->
+    <el-dialog v-model="agreementVisible" :title="agreementTitle" width="640px" class="agreement-dialog">
+      <el-alert
+        v-if="AGREEMENT_PLACEHOLDER"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="agreement-alert"
+        :title="t('authPage.agreementPlaceholder')"
+      />
+      <div class="agreement-body">
+        <p v-for="(para, i) in agreementParagraphs" :key="i">{{ para }}</p>
+      </div>
+      <template #footer>
+        <span v-if="AGREEMENT_VERSION" class="agreement-version">
+          {{ t('authPage.agreementVersion') }} {{ AGREEMENT_VERSION }}
+        </span>
+        <el-button type="primary" @click="agreementVisible = false">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -105,7 +141,9 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { Iphone, Key, Lock, Message, User } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
-import { checkAccountAvailableApi, registerApi, sendVerifyCodeApi } from '@/api/auth'
+import { AGREEMENT_PLACEHOLDER, AGREEMENT_VERSION, getAgreementDoc } from '@/config/agreement'
+import { checkAccountApi, checkEmailAvailableApi, registerApi, sendVerifyCodeApi } from '@/api/auth'
+import type { AccountCheck } from '@/api/auth'
 
 defineOptions({ name: 'RegisterView' })
 
@@ -115,7 +153,7 @@ const { t } = useI18n()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 /** 账号占用检查结果：null=还没查，true=可注册，false=被占用/保留 */
-const accountAvailable = ref<boolean | null>(null)
+const accountState = ref<AccountCheck | null>(null)
 
 const form = reactive({
   UserName: '',
@@ -125,6 +163,55 @@ const form = reactive({
   Tele: '',
   VerifyCode: ''
 })
+
+/* ---------------- 邮箱唯一性（一个邮箱只能绑一个账号） ---------------- */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** 该邮箱是否已被占用（true 时表单下方直接飘红，并禁掉发码/提交） */
+const emailTaken = ref(false)
+const checkingEmail = ref(false)
+const emailError = computed(() => (emailTaken.value ? t('authPage.emailTaken') : ''))
+
+/** true = 可用 */
+async function checkEmail(): Promise<boolean> {
+  const email = form.Email.trim()
+  emailTaken.value = false
+  if (!email || !EMAIL_RE.test(email)) return true
+  checkingEmail.value = true
+  try {
+    const ok = await checkEmailAvailableApi(email)
+    emailTaken.value = !ok
+    if (!ok) {
+      // 邮箱已占用 → 之前拿的 token 和验证码都作废，避免走到提交才失败
+      verifyToken.value = ''
+      form.VerifyCode = ''
+    }
+    return ok
+  } catch {
+    // 查重只是体验优化，查不了就放行 —— 后端提交时才是真正的把关
+    return true
+  } finally {
+    checkingEmail.value = false
+  }
+}
+
+/** 失焦即查：用户一填完邮箱就知道能不能用，不用等点发码 */
+async function onEmailBlur() {
+  await checkEmail()
+}
+
+/* ---------------- 用户协议 ---------------- */
+/** 是否勾选「已阅读并同意」—— 不勾不许提交 */
+const agreed = ref(false)
+const agreementVisible = ref(false)
+const agreementKey = ref<'terms' | 'privacy'>('terms')
+const agreementDoc = computed(() => getAgreementDoc(agreementKey.value))
+const agreementTitle = computed(() => (agreementDoc.value ? t(agreementDoc.value.titleKey) : ''))
+const agreementParagraphs = computed(() => agreementDoc.value?.paragraphs ?? [])
+
+function openAgreement(key: 'terms' | 'privacy') {
+  agreementKey.value = key
+  agreementVisible.value = true
+}
 
 /* ---------------- 验证码 ---------------- */
 const sending = ref(false)
@@ -157,6 +244,8 @@ onBeforeUnmount(() => {
 watch(
   () => form.Email,
   (now, before) => {
+    // 邮箱一改，"已占用"的结论就失效了，等下一次失焦重新查
+    emailTaken.value = false
     if (!verifyToken.value) return
     if ((now || '').trim().toLowerCase() !== (before || '').trim().toLowerCase()) {
       verifyToken.value = ''
@@ -180,6 +269,12 @@ async function sendCode() {
 
   sending.value = true
   try {
+    // 发码前再确认一次邮箱没被占用：已注册的邮箱**绝不能白收一封验证码邮件**
+    // （浪费额度 + 触发风控 + 等于告诉对方"这邮箱注册过"）
+    if (!(await checkEmail())) {
+      ElMessage.error(t('authPage.emailTaken'))
+      return
+    }
     verifyToken.value = await sendVerifyCodeApi(email, 'Register')
     ElMessage.success(t('authPage.codeSent'))
     startCooldown(60)
@@ -216,27 +311,49 @@ const rules = computed<FormRules>(() => ({
   ]
 }))
 
-/** 失焦时校验账号是否可用（调用 /userUnRegister） */
+/**
+ * 失焦时校验账号能不能用来注册
+ * 两个判断合在一起：是否已被注册（/userSingle）+ 是否系统保留名（/userUnRegister）
+ */
 async function checkAccount() {
   const name = form.UserName.trim()
   if (!name) {
-    accountAvailable.value = null
+    accountState.value = null
     return
   }
   try {
-    accountAvailable.value = await checkAccountAvailableApi(name)
-    if (!accountAvailable.value) ElMessage.warning(t('authPage.accountReserved'))
+    accountState.value = await checkAccountApi(name)
+    if (accountState.value === 'taken') ElMessage.warning(t('authPage.accountTaken'))
+    if (accountState.value === 'reserved') ElMessage.warning(t('authPage.accountReserved'))
   } catch {
     // 校验失败不阻断提交：交给注册接口自己判断（后端才是最终裁决）
-    accountAvailable.value = null
+    accountState.value = null
   }
 }
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
-  if (accountAvailable.value === false) {
+  // 协议没勾就别提交（勾选框不在 el-form 里，单独挡一道）
+  if (!agreed.value) {
+    ElMessage.warning(t('authPage.agreementRequired'))
+    return
+  }
+  if (accountState.value === 'taken') {
+    ElMessage.warning(t('authPage.accountTaken'))
+    return
+  }
+  if (accountState.value === 'reserved') {
     ElMessage.warning(t('authPage.accountReserved'))
+    return
+  }
+  // 邮箱被别人占了就别往下走（后端提交时也会拒，这里先把话说明白）
+  if (emailTaken.value) {
+    ElMessage.warning(t('authPage.emailTaken'))
+    return
+  }
+  if (!(await checkEmail())) {
+    ElMessage.warning(t('authPage.emailTaken'))
     return
   }
   // 必须先拿到发码返回的 token，否则后端一定拒（而且这是后端的硬要求）
@@ -327,6 +444,73 @@ async function handleSubmit() {
 .auth-btn {
   width: 100%;
   margin-top: 4px;
+}
+
+/* ---- 用户协议勾选行 ---- */
+.agreement-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 2px 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+
+  :deep(.el-checkbox) {
+    height: auto;
+    margin-right: 0;
+  }
+
+  :deep(.el-checkbox__label) {
+    padding-left: 6px;
+    font-size: 13px;
+  }
+}
+
+.agreement-text {
+  color: var(--el-text-color-regular);
+}
+
+.agreement-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--el-color-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.5;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* ---- 协议正文弹窗 ---- */
+.agreement-alert {
+  margin-bottom: 14px;
+}
+
+.agreement-body {
+  max-height: 52vh;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--el-text-color-regular);
+
+  p {
+    margin: 0 0 12px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+.agreement-version {
+  margin-right: 12px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .auth-links {

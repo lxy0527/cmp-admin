@@ -170,13 +170,21 @@ export default {
     submitChangePwd: 'Confirm',
     verifyCodeLength: 'The code is 6 characters',
     changePwdSuccess: 'Password changed — please log in with the new password',
-    changePwdFailed: 'Failed to change the password',    accountReserved: 'This account is reserved by the system or already taken',
+    changePwdFailed: 'Failed to change the password',
+    accountReserved: 'This account name is reserved by the system',
+  accountTaken: 'This account is already registered, please use another one',
+    emailTaken: 'This email is already registered, please use another one',
+    emailNotRegistered: 'This email is not registered, please check and try again',
+    agreementAgree: 'I have read and agree to',
+    agreementAnd: 'and',
+    agreementTerms: 'the Terms of Use',
+    agreementPrivacy: 'the Privacy Policy',
+    agreementRequired: 'Please read and accept the Terms of Use and Privacy Policy first',
+    agreementPlaceholder:
+      '(Placeholder) The official wording has not been supplied by the client / legal yet. The entry point, checkbox validation and dialog are all wired up — once the final text arrives, only src/config/agreement.ts needs to be replaced; no page changes required.',
+    agreementVersion: 'Version',
     registerSuccess: 'Registered successfully. Please log in with the new account.',
-    registerFailed: 'Registration failed',
-    forgotNoApi:
-      'The backend has not provided a "forgot password" API (it is not in the API documentation). This page is UI-only and does not actually send any email.',
-    forgotHint: 'To reset the password, please contact an administrator.',
-    forgotSubmitted: 'Self-service recovery is unavailable here — please contact an administrator.'
+    registerFailed: 'Registration failed'
   },
 
   login: {
@@ -188,7 +196,10 @@ export default {
     usernameRequired: 'Please enter username',
     passwordRequired: 'Please enter password',
     failed: 'Login failed',
-    demoHint: 'Demo account: admin / 123456'
+    demoHint: 'admin / 123456 (admin) · viewer / 123456 (normal)',
+    realTestTitle: 'Test accounts · connected to the real backend',
+    demoTitle: 'Demo mode · built-in accounts',
+    demoNote: 'Real backend accounts (e.g. user01) only work on the company intranet; this site runs on built-in demo data.'
   },
 
   /** Top info bar (static for now; values will come from an API later) */
@@ -239,7 +250,6 @@ export default {
       company: 'Permit Approver',
       dateRange: 'Application Date'
     },
-    exportPlaceholder: 'Export task submitted (placeholder until the API is ready)',
     mockNote: 'No API for this module yet (confirmed by the backend, issue 2); data is demo only.'
   },
 
@@ -475,7 +485,9 @@ export default {
     enableSuccess: 'Enabled Successfully',
     disableSuccess: 'Disabled Successfully',
     passwordMismatch: 'Passwords do not match',
-    passwordNoSpace: 'Password cannot contain leading or trailing spaces'
+    passwordNoSpace: 'Password cannot contain leading or trailing spaces',
+    createNote: 'Admin-created accounts do not require an email verification code. Mobile and other profile fields can be filled in later via Edit.',
+    permissionDenied: 'This account is not allowed to perform this action (rejected by the server)'
   },
 
   photoWall: {
@@ -601,5 +613,14 @@ export default {
       'The endpoint list is currently static config (the old site endpoint returns 404 on this backend). It will be fetched dynamically once the new API is available.',
     legacyNote:
       'The full "CMP Open Data Receiving API v1.6.0" document (6 alert pushes + config sync + statistics sync) currently exists only on the old site and must be provided by the backend.'
+  },
+  forbidden: {
+    code: '403',
+    title: 'This account has no permission for this page',
+    hint: 'If you need this page for your work, please ask an administrator to grant the permission.',
+    reloginHint: 'If you signed in with another account, you can switch account and sign in again.',
+    backHome: 'Back to home',
+    backPrev: 'Back',
+    relogin: 'Switch account and sign in'
   }
 }

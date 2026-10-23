@@ -99,6 +99,24 @@ service.interceptors.request.use((config) => {
 })
 
 /** 响应拦截：拆包 + 统一错误提示 + 掉线处理 */
+/**
+ * 登录态失效 → 清本地状态 + 带回跳地址回登录页（重新登入）。
+ *
+ * 后端 2026-10-21 明确：没权限时它会 `302` 到它自己的 `/Account/Login`，
+ * 落到前端就是一个 HTML 页面。这里统一当成「登录态失效」处理：
+ * 把用户送回登录页，登录成功后再回到原来想去的页面（`?redirect=`），
+ * 而不是原地弹一句看不懂的「接口未授权」。
+ *
+ * 已经在登录页就不跳，避免死循环。
+ */
+function redirectToLogin(message: string): void {
+  const current = router.currentRoute.value
+  if (current.path === '/login') return
+  ElMessage.error(message)
+  useUserStore().reset()
+  router.replace({ path: '/login', query: { redirect: current.fullPath } })
+}
+
 service.interceptors.response.use(
   (response) => {
     // 二进制流（导出/下载）直接透传，不能走下面的拆包逻辑
@@ -109,8 +127,13 @@ service.interceptors.response.use(
 
     // 后端鉴权失败时返回的 HTML 登录页：必须拦掉，否则会被当成"成功的数据"
     if (typeof res === 'string' && res.trimStart().startsWith('<')) {
-      const msg = '接口未授权（请检查 ApiId / ApiKey 与开放域名白名单）'
-      ElMessage.error(msg)
+      const silent = Boolean((response.config as RequestConfig | undefined)?.silent)
+      const msg = '登入狀態已失效或無此權限，請重新登入'
+      if (!silent) {
+        // 曾登录过 → 送回登录页重新登入；从未登录（如开发环境 ApiId/ApiKey 没配）→ 只提示
+        if (storage.get<string>(USER_TOKEN_KEY)) redirectToLogin(msg)
+        else ElMessage.error('接口未授权（请检查 ApiId / ApiKey 与开放域名白名单）')
+      }
       return Promise.reject(new Error(msg))
     }
 
@@ -120,21 +143,35 @@ service.interceptors.response.use(
     const result = res as ApiResult
     if (!isApiSuccess(result.code)) {
       const msg = result.message || '请求失败'
-      ElMessage.error(msg)
+      if (!(response.config as RequestConfig | undefined)?.silent) ElMessage.error(msg)
       return Promise.reject(new Error(msg))
     }
     return result
   },
   (error) => {
     const status = error?.response?.status
+    const silent = Boolean((error?.config as RequestConfig | undefined)?.silent)
+    // 探测型请求（silent）：不弹提示、也不做掉线清理
+    // （`/api/permission` 失败会返回 400/401/403/405，其中 401 只是"没权限"，
+    //   不能当成登录过期把人踢下线）
+    if (silent) return Promise.reject(error)
+
     if (status === 401) {
-      // 掉线：清干净本地状态再回登录页（用 store 而不是直接删 storage，保证内存态一起清）
-      ElMessage.error('登录已过期，请重新登录')
-      useUserStore().reset()
-      router.replace('/login')
+      // 掉线 / 无权限：统一回登录页重新登入（带 ?redirect= 回跳地址）
+      redirectToLogin('登入狀態已失效或無此權限，請重新登入')
     } else if (status === 403) {
       // 实测：开放域名不在白名单时后端返回 403 + {"code":"FAIL","message":"域名为授权"}
-      ElMessage.error(error?.response?.data?.message || '域名未授权')
+      const msg = String(error?.response?.data?.message || '')
+      if (msg.includes('域名')) {
+        ElMessage.error(msg || '域名未授权')
+      } else {
+        // 已登录但没权限：落到独立落地页（页面上有「切換帳號重新登入」）
+        ElMessage.error('目前帳號沒有此操作權限')
+        const current = router.currentRoute.value
+        if (current.path !== '/403') {
+          router.replace({ path: '/403', query: { from: current.fullPath } })
+        }
+      }
     } else {
       ElMessage.error(error?.message || '网络异常')
     }
@@ -143,10 +180,21 @@ service.interceptors.response.use(
 )
 
 /**
+ * 请求配置：在 axios 的基础上加一个 `silent`
+ *
+ * `silent: true` = **失败时不弹全局提示**，由调用方自己处理。
+ * 用于「探测型」请求（例如 `/api/permission` 鉴权，失败本来就只返回状态码，
+ * 弹一句"域名未授权"会把用户吓到，实际只是没权限）。
+ */
+export interface RequestConfig extends AxiosRequestConfig {
+  silent?: boolean
+}
+
+/**
  * 业务层统一调用的入口：`const { data } = await request<T>({ url, method })`
  * ⚠️ 注意：CMP 开放接口**几乎全是 POST**（含查询），GET 只用于个别文档类接口。
  */
-export function request<T = unknown>(config: AxiosRequestConfig): Promise<ApiResult<T>> {
+export function request<T = unknown>(config: RequestConfig): Promise<ApiResult<T>> {
   return service.request<unknown, ApiResult<T>>(config)
 }
 

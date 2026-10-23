@@ -315,7 +315,8 @@ async function handleCommand(command: string) {
     return
   }
   if (command === 'password') {
-    ElMessage.info('修改密码：等接口就绪后再做（占位）')
+    // 修改密码页早已就绪（/api/changePassword + 邮箱验证码），直接跳过去
+    router.push('/forgot-password')
     return
   }
   if (command === 'logout') {

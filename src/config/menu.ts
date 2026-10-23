@@ -75,6 +75,18 @@ export interface ModuleConfig {
   order?: number
   /** 隐藏整个模块 Tab（例如临时下线） */
   hidden?: boolean
+  /**
+   * 整个模块需要的**服务端**角色（`POST /api/permission` 的 `Permission` 值）
+   * - `Admin`         超级管理员
+   * - `CustomerAdmin` 客户管理员（超管也包含，后端文档明确说明）
+   *
+   * 不填 = 不额外校验（仍受前端权限点 `permission` 约束）。
+   *
+   * ⚠️ 跟前端权限点是两回事：
+   *    前端权限点只管菜单/按钮显不显示，改 JS 就能绕；
+   *    这里的结果来自后端，绕不过去（但**真正的拦截仍必须后端在每个接口里做**）。
+   */
+  serverPermission?: 'Admin' | 'CustomerAdmin'
 }
 
 /**
@@ -190,6 +202,9 @@ export const MODULES: ModuleConfig[] = [
     titleKey: 'menu.cmpSetting',
     path: '/cmp-setting',
     icon: 'setting',
+    // 整个后台设置模块 = 后端 `Role=1`（超级管理员）才能进。
+    // 后端 2026-10-21 提供了 `POST /api/permission { Permission: 'Admin' }` 用于校验。
+    serverPermission: 'Admin',
     children: [
       {
         title: '角色管理',

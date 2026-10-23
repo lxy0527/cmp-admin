@@ -85,7 +85,28 @@
         </el-button>
       </div>
 
-      <p class="card-tip">{{ t('login.demoHint') }}</p>
+      <!-- 演示/模拟模式：把可用账号直接摆在登录框下面，避免有人拿真实后端账号来试 -->
+      <div v-if="showDemoTip" class="demo-tip">
+        <p class="demo-tip__title">{{ t('login.demoTitle') }}</p>
+        <p class="demo-tip__accounts">{{ t('login.demoHint') }}</p>
+        <p class="demo-tip__note">{{ t('login.demoNote') }}</p>
+      </div>
+
+      <!--
+        真实模式（连真后端）：列出可用的测试账号，后端同事不用来问密码。
+        账号清单在 src/config/testAccounts.ts，上线前把 SHOW_TEST_ACCOUNTS 关掉即可整块消失。
+      -->
+      <div v-else-if="showTestAccounts" class="demo-tip">
+        <p class="demo-tip__title">{{ t('login.realTestTitle') }}</p>
+        <p v-for="acc in testAccounts" :key="acc.userName" class="demo-tip__accounts">
+          <span class="acc-line">
+            <code>{{ acc.userName }}</code>
+            <span class="acc-sep">/</span>
+            <code>{{ acc.password }}</code>
+            <span class="acc-role">{{ acc.roleLabel }}</span>
+          </span>
+        </p>
+      </div>
     </div>
   </div>
 </template>
@@ -98,18 +119,35 @@ import { useI18n } from 'vue-i18n'
 import { Lock, User } from '@element-plus/icons-vue'
 import AppLogo from '@/components/AppLogo.vue'
 import { useUserStore } from '@/store/user'
+import { DEMO_MODE } from '@/demo'
+import { USE_MOCK } from '@/mock/helper'
+import { SHOW_TEST_ACCOUNTS, TEST_ACCOUNTS } from '@/config/testAccounts'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const { t } = useI18n()
 
+/**
+ * 演示/模拟模式：只能在演示内置账号间登录，真实后端账号（如 user01）在这两个环境里不存在。
+ * 真实模式（VITE_USE_MOCK=false 且 VITE_DEMO_MODE=false）下不再显示这段提示，
+ * 也不预填 admin/123456 —— 否则会让人以为"密码就是这个"。
+ */
+const showDemoTip = DEMO_MODE || USE_MOCK
+
+/**
+ * 真实模式下展示测试账号（admin / user01）。
+ * 清单在 src/config/testAccounts.ts，上线前把那边的 SHOW_TEST_ACCOUNTS 改成 false 即可。
+ */
+const showTestAccounts = SHOW_TEST_ACCOUNTS && !showDemoTip
+const testAccounts = TEST_ACCOUNTS
+
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
 const form = reactive({
-  username: 'admin',
-  password: '123456'
+  username: showDemoTip ? 'admin' : '',
+  password: showDemoTip ? '123456' : ''
 })
 
 const rules = computed<FormRules>(() => ({
@@ -408,6 +446,65 @@ const nearBuildings: Building[] = Array.from({ length: 14 }, () => ({
   font-size: 12px;
   color: #a0a6b0;
   text-align: center;
+}
+
+/* 演示模式账号提示：刻意做得显眼一点，避免有人拿真实后端账号来试 */
+.demo-tip {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid #f7e2b0;
+  border-radius: 6px;
+  background: #fffaf0;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.demo-tip__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b7791f;
+}
+
+.demo-tip__accounts {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #8a5a00;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-tip__note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #a08556;
+}
+
+/* 真实模式的测试账号行：账号 / 密码 + 角色说明 */
+.acc-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.acc-line code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fdf0d5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #8a5a00;
+}
+
+.acc-sep {
+  color: #c9a56a;
+}
+
+.acc-role {
+  margin-left: 2px;
+  font-size: 11px;
+  color: #a08556;
 }
 
 :deep(.el-input__wrapper) {
