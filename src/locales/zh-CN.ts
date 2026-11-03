@@ -276,7 +276,7 @@ export default {
       alarmTitle: '新报警',
       received: '本次已收到 {count} 条',
       lastAt: '最近：{time}',
-      disabledHint: '未配置 WebSocket 地址（VITE_WS_URL），无法接收实时报警。'
+      disabledHint: '实时推送尚未配置（缺少：{items}），无法接收实时报警。'
     },
     /** 首页 4 个统计卡（按旧站设计稿的指标名，口径待需求方确认） */
     cards: {

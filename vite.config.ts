@@ -72,6 +72,18 @@ export default defineConfig(({ command, mode }) => {
           target,
           changeOrigin: true,
           /**
+           * ws: true —— 让 `/api/alarmWebSocket` 的 WebSocket 升级请求也走这个代理。
+           *
+           * 为什么需要：后端按 Origin 做域名白名单，只认 http://localhost:5173。
+           *   - 直接连 ws://192.168.77.15:82：从 localhost:5173 打开时能通，
+           *     换成本机局域网 IP（192.168.77.6:5173）就被 403 挡掉。
+           *   - 走代理：握手由 node 转发，下面 headers 会把 Origin 改写成白名单域名，
+           *     在哪种地址下打开都能通。
+           * 所以开发环境的 VITE_WS_URL 配成 `ws://localhost:5173`，
+           * 生产环境配成网关的 `wss://` 地址。
+           */
+          ws: true,
+          /**
            * 鉴权头在这里统一加上（http-proxy 的 headers 选项 = 附加到转发请求上）。
            * 前端代码里因此完全看不到 ApiId/ApiKey。
            */

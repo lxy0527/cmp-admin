@@ -374,4 +374,46 @@ export async function registerApi(params: RegisterParams, verifyToken?: string):
   })
 }
 
+/**
+ * token 用途（后端 `/refresh` 的 `Scene` 字段）
+ *   Chart    —— 大屏 / 看板：长期挂起，token 过期就重定向登录
+ *   AppLogin —— app 长期登录
+ */
+export type RefreshScene = 'Chart' | 'AppLogin'
 
+/** token 有效期 3 小时；提前到 30 分钟续一次，留足余量 */
+export const TOKEN_REFRESH_MS = 30 * 60 * 1000
+
+/**
+ * 换一个新 token：POST /api/refresh
+ *
+ * 为什么要它：token 只有 **3 小时**有效。看板/大屏是长期挂着的页面，
+ * 挂满 3 小时后下一次重连拿的还是旧 token，握手必然失败 ——
+ * 所以必须在 token 过期**之前**换新的，而不是等它过期了再补救。
+ *
+ * ★ 新 token 同样在返回体**顶层**（`res.token`，与 data 平级），不在 data 里。
+ * ★ 本接口本身也要带 token（不在免 token 名单里），拦截器会自动注入旧 token。
+ *
+ * @param scene 用途，默认 Chart（大屏）
+ * @returns 新 token（已写入本地存储，调用方直接用这个值）
+ */
+export async function refreshTokenApi(scene: RefreshScene = 'Chart'): Promise<string> {
+  // 演示/假数据模式：没有后端可换，沿用现有 token，别让调用方以为失败了
+  if (USE_MOCK) return storage.get<string>(USER_TOKEN_KEY) || ''
+
+  const res = await request<unknown>({
+    url: '/refresh',
+    method: 'post',
+    data: { Scene: scene },
+    // 续期失败不该弹全局错误（大屏无人值守），交给调用方决定要不要提示
+    silent: true
+  })
+
+  const token = String(res.token ?? '').trim()
+  if (!isApiSuccess(res.code) || !token) {
+    throw new Error(res.message || 'token 续期失败：返回体缺少 token')
+  }
+
+  storage.set(USER_TOKEN_KEY, token)
+  return token
+}

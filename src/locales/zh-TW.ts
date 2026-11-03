@@ -273,7 +273,7 @@ export default {
       alarmTitle: '新警報',
       received: '本次已收到 {count} 條',
       lastAt: '最近：{time}',
-      disabledHint: '未配置 WebSocket 地址（VITE_WS_URL），無法接收即時警報。'
+      disabledHint: '即時推送尚未配置（缺少：{items}），無法接收即時警報。'
     },
     /** 首頁 4 個統計卡（按舊站設計稿的指標名，口徑待需求方確認） */
     cards: {

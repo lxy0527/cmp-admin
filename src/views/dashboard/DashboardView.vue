@@ -69,7 +69,7 @@
             type="info"
             :closable="false"
             class="live-alert"
-            :title="t('dashboard.live.disabledHint')"
+            :title="disabledText"
           />
 
           <!-- 加载失败：给一条出路，别让人对着骨架屏干等 -->
@@ -144,7 +144,9 @@
  * 而是新的"全局指标 + 环形图 + 实时警报推送"。
  *
  * 实时来源：WebSocket `/api/alarmWebSocket`（见 composables/useAlarmSocket.ts）
- *   - 真实环境：配置 VITE_WS_URL（后端/网关给一个已带鉴权的完整地址）
+ *   - 真实环境：`VITE_WS_URL` 只配**基础地址**（`ws://host:port`），
+ *     握手 Query（ApiId/token/CustomerSN/Timestamp）由前端每次连接时现拼 ——
+ *     因为 token 只有 3 小时，静态写死一个带 token 的完整地址没有任何意义
  *   - 演示模式：本地模拟推送，指示点显示「模擬推送」，不会冒充真实连接
  *
  * ⚠️ 统计卡的数值目前仍来自 mock（口径待需求方确认，见文档 P0-2）；
@@ -200,6 +202,7 @@ const lastAlarm = ref<{ sn: string; time: string } | null>(null)
 const {
   status: socketStatus,
   received,
+  missingConfig,
   start: startSocket,
   stop: stopSocket
 } = useAlarmSocket({ onAlarm: handleAlarm })
@@ -259,8 +262,17 @@ const liveLabel = computed(() => {
   return map[socketStatus.value] || t('dashboard.live.closed')
 })
 
+/**
+ * 缺配置提示：把"缺哪一项"直接摊开说。
+ * 缺地址、缺 ApiId、缺 token、缺 CustomerSN 是完全不同的四件事，
+ * 糊成一句"未配置"只会让人去翻半天代码。
+ */
+const disabledText = computed(() =>
+  t('dashboard.live.disabledHint', { items: missingConfig.value.join(', ') || '—' })
+)
+
 const liveHint = computed(() =>
-  socketStatus.value === 'disabled' ? t('dashboard.live.disabledHint') : t('dashboard.live.title')
+  socketStatus.value === 'disabled' ? disabledText.value : t('dashboard.live.title')
 )
 
 onMounted(async () => {

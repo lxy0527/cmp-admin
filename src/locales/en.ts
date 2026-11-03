@@ -268,7 +268,7 @@ export default {
       alarmTitle: 'New Alarm',
       received: '{count} received',
       lastAt: 'Latest: {time}',
-      disabledHint: 'No WebSocket URL configured (VITE_WS_URL); live alarms are unavailable.'
+      disabledHint: 'Live push is not configured (missing: {items}); alarms will not arrive.'
     },
     /** Dashboard stat cards (labels from the design; definitions pending confirmation) */
     cards: {
