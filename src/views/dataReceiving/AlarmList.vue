@@ -205,6 +205,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total: table.total.value }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="table.pageNum.value"
           v-model:page-size="table.pageSize.value"
           :page-sizes="[10, 20, 50, 100]"
@@ -260,7 +261,12 @@
       内容是"后端返回什么就显示什么"：已知字段按顺序 + 友好格式化，
       未知字段进「其他欄位」原样展示，不会被吞掉。
     -->
-    <el-drawer v-model="detailVisible" :title="t('alarm.detailTitle')" size="520px">
+    <!-- 宽屏 520px；窄屏 520 会超出视口把关闭按钮顶到屏外，直接整屏 -->
+    <el-drawer
+      v-model="detailVisible"
+      :title="t('alarm.detailTitle')"
+      :size="isMobile ? '100%' : '520px'"
+    >
       <div v-loading="detailLoading" class="detail-wrap">
         <el-descriptions v-if="detailRow" :column="1" border size="small">
           <el-descriptions-item v-for="f in detailFields" :key="f.key" :label="f.label">
@@ -310,6 +316,10 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 /**
  * 警报列表 —— **7 个分类共用这一个页面**
  * ============================================================
@@ -966,6 +976,76 @@ watch(
 
   &:hover {
     text-decoration: underline;
+  }
+}
+
+/* ---------------- 窄屏 / 手机 ----------------
+ * 桌面版是「筛选条一行铺开 + 表格吃满剩余高度」。
+ * 手机上：筛选每项独占一行（标签在上、控件满宽），工具栏可换行，
+ * 表格不再吃满高度，而是给个最小高度后让 el-table 自己横向滚动。
+ */
+@media (max-width: 900px) {
+  .alarm-list {
+    height: auto;
+  }
+
+  .filter-bar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .filter-item {
+    flex: 1 1 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .filter-control,
+  .filter-control--date {
+    width: 100%;
+  }
+
+  .filter-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .table-card {
+    flex: none;
+    padding: 10px 12px;
+  }
+
+  /* 标题和"已选中 N 条"不许被按钮挤成竖排 */
+  .table-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .card-title {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .batch-actions {
+    flex-wrap: wrap;
+  }
+
+  .selected-text,
+  .denied-hint,
+  .total-text {
+    white-space: nowrap;
+  }
+
+  .alarm-table {
+    flex: none;
+    min-height: 300px;
+  }
+
+  .table-foot {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 </style>

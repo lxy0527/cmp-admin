@@ -2,7 +2,12 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1280" />
+    <!-- width=device-width：按设备逻辑宽度渲染，不再把 1280 的桌面整页缩到手机里 -->
+    <!-- viewport-fit=cover：允许内容延伸到 iPhone 刘海/圆角区域，配合安全区变量使用 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>CMP3.0 Admin</title>
   </head>
   <body>

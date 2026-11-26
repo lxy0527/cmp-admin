@@ -95,3 +95,109 @@ a {
 .el-dialog {
   border-radius: $radius-lg;
 }
+
+/* ---------- 窄屏 / 手机：Element Plus 控件的公共适配 ----------
+ * 这两类控件每个列表页都长一样，撑破容器的方式也一样，所以统一放全局：
+ *  1) el-pagination 的「跳页」+「条数选择」加起来比手机屏还宽；
+ *  2) el-date-editor--daterange 内部有约 350px 的固定宽度，窄屏必然溢出。
+ *
+ * 为什么每条选择器前面都挂一个 body：
+ * Element Plus 的 dist/index.css 虽然在本文件之前 import，但 Vite 注入后它实际
+ * 排在我们后面，同样特异性（例如 .el-pagination .el-select 对
+ * .el-pagination__sizes .el-select）会被它反压回去——改了 width 不生效就是这个原因。
+ * 挂一层 body 让特异性 +1，就不用满屏幕写 !important 了。
+ */
+@media (max-width: 900px) {
+  /* 目标：整条分页保持一行（最多两行），不要一页一行地裂开 */
+  body .el-pagination {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    column-gap: 4px;
+  }
+
+  /* 页码按钮整体收窄：默认 32px 在 400px 屏上太奢侈 */
+  body .el-pagination .el-pager li,
+  body .el-pagination button.btn-prev,
+  body .el-pagination button.btn-next {
+    min-width: 26px;
+    height: 26px;
+    padding: 0 4px;
+    font-size: 12px;
+  }
+
+  /* 「20 項/頁」的下拉框收窄，它一个就能吃掉四分之一屏宽（EP 默认 128px） */
+  body .el-pagination__sizes .el-select {
+    width: 84px;
+  }
+
+  body .el-pagination__sizes .el-select__wrapper {
+    min-height: 26px;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+
+  /* 手机上只留「上一页 / 页码 / 下一页 / 条数」，跳页那格先藏掉 */
+  body .el-pagination .el-pagination__jump {
+    display: none !important;
+  }
+
+  body .el-date-editor.el-date-editor--daterange {
+    width: 100% !important;
+    min-width: 0;
+  }
+
+  body .el-date-editor .el-range-input {
+    font-size: 12px;
+  }
+
+  body .el-date-editor .el-range-separator {
+    padding: 0 4px;
+  }
+
+  /* 列表页的「标题 + 说明」在窄屏上改纵向。
+     组件里的 scoped 样式是 .table-head[data-v-xxx]（两个 class 级），
+     这里用更深的选择器压过它，免得那行说明把标题挤成竖排。 */
+  body .page .page-card .table-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  body .page .page-card .card-title {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* 弹窗在窄屏上别贴着屏幕两边，左右各留 24px。
+     EP 用 --el-dialog-width（默认 50%），组件也可能内联写死 width，所以直接 !important。 */
+  body .el-dialog {
+    width: calc(100vw - 48px) !important;
+    max-width: 480px;
+    margin: 12vh auto 24px;
+  }
+
+  body .el-dialog__body {
+    padding: 16px;
+  }
+
+  /* 「共 N 條記錄 + 分页」放不下时整块换行，而不是把数字挤成竖排 */
+  body .page .page-card .table-foot {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* iOS Safari（WebKit 触屏）专属：可聚焦文本控件的字号 < 16px 时，
+     一聚焦浏览器就把整个视口放大，表现为「点一下输入框，页面就歪了、
+     键盘把按钮顶出屏幕」，而且不会自动缩回来。
+     只抬 WebKit 触屏，安卓和桌面保持原来的排版密度；
+     日期区间控件同样要吃这条，否则它 12px 的输入一样会触发缩放。 */
+  @supports (-webkit-touch-callout: none) {
+    body .el-input__inner,
+    body .el-textarea__inner,
+    body .el-select__wrapper,
+    body .el-select__input,
+    body .el-date-editor .el-range-input {
+      font-size: 16px;
+    }
+  }
+}

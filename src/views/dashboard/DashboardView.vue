@@ -616,4 +616,80 @@ onBeforeUnmount(() => {
   color: $text-secondary;
 }
 
+/* ---------------- 窄屏 / 手机 ----------------
+ * 桌面版是「340px 统计列 + 右侧监控卡」的左右分栏，且高度锁 100%。
+ * 手机上一律改成纵向：统计卡排 2×2，监控卡接在下面，高度交给内容。
+ */
+@media (max-width: 900px) {
+  .dashboard {
+    height: auto;
+  }
+
+  .dash-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    height: auto;
+  }
+
+  .stat-col {
+    /* 4 张卡排 2×2，比竖着堆 4 个少一半滚动 */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+    gap: 10px;
+  }
+
+  .stat-card {
+    min-height: 72px;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .stat-icon {
+    flex: none;
+    width: 38px;
+    height: 38px;
+  }
+
+  .monitor-col {
+    height: auto;
+  }
+
+  .monitor-card {
+    height: auto;
+  }
+
+  .monitor-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .monitor-body .donut {
+    align-self: center;
+  }
+
+  /* 图例在窄屏铺满，名字占剩余宽度，数字靠右 */
+  .legend li {
+    width: 100%;
+  }
+
+  .legend-name {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sk-monitor {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sk-donut {
+    width: 220px;
+    height: 220px;
+  }
+}
 </style>

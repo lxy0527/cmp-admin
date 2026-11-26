@@ -24,11 +24,16 @@
         <span class="head-hint">{{ t('role.mockNote') }}</span>
       </div>
       <el-table v-loading="loading" :data="rows" stripe height="100%">
-        <el-table-column prop="id" label="ID" width="120" align="center" />
+        <el-table-column prop="id" label="ID" :width="isMobile ? 64 : 120" align="center" />
         <el-table-column prop="roleName" :label="t('role.name')" min-width="200" align="center" />
         <el-table-column prop="roleDesc" :label="t('role.description')" min-width="320" align="center" />
         <el-table-column prop="createTime" :label="t('role.createTime')" min-width="200" align="center" />
-        <el-table-column :label="t('common.operation')" width="160" align="center" fixed="right">
+        <el-table-column
+          :label="t('common.operation')"
+          :width="isMobile ? 116 : 160"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               v-permission="P.roleEdit"
@@ -55,6 +60,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="query.pageNum"
           v-model:page-size="query.pageSize"
           :total="total"
@@ -89,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useI18n } from 'vue-i18n'
@@ -96,6 +103,9 @@ import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { deleteRoleApi, getRolePageApi, saveRoleApi } from '@/api/role'
 import { P } from '@/config/permission'
 import type { RoleQuery, RoleRow } from '@/mock'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 
 defineOptions({ name: 'RoleManagement' })
 

@@ -62,7 +62,7 @@
         @selection-change="onSelectionChange"
       >
         <el-table-column type="selection" width="46" align="center" />
-        <el-table-column prop="Id" label="ID" width="80" align="center" />
+        <el-table-column prop="Id" label="ID" :width="isMobile ? 64 : 80" align="center" />
         <el-table-column :label="t('photoContent.image')" width="110" align="center">
           <template #default="{ row }">
             <el-image
@@ -88,7 +88,12 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.operation')" width="160" align="center" fixed="right">
+        <el-table-column
+          :label="t('common.operation')"
+          :width="isMobile ? 116 : 160"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button v-permission="P.photoContent" link type="primary" size="small" @click="openEdit(row as PhotoResourceRow)">
               {{ t('common.edit') }}
@@ -103,6 +108,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total: table.total.value }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="table.pageNum.value"
           v-model:page-size="table.pageSize.value"
           :page-sizes="[10, 20, 50, 100]"
@@ -237,6 +243,10 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 /**
  * 照片牆資源管理（= 某个档案下的图片，**不是"图片报警"**）
  * ============================================================

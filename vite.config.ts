@@ -18,9 +18,18 @@ export default defineConfig(({ command, mode }) => {
    *   3. 正式环境应由后端网关承担同一职责（前端只调自己的后端）。
    */
   const env = loadEnv(mode, process.cwd(), '')
-  const target = env.CMP_API_TARGET || 'http://192.168.77.15:82'
-  const apiId = env.CMP_API_ID || ''
-  const apiKey = env.CMP_API_KEY || ''
+  /**
+   * process.env 优先于 .env 文件。
+   * ------------------------------------------------------------
+   * 用途：临时切联调环境时不必改动 .env.development.local（那个文件是密钥，
+   * 且被 git 忽略），一行命令就能换目标：
+   *   CMP_API_TARGET=http://test02.webaisys.cn npm run dev
+   * 不传就用 .env 里的值，日常开发行为不变。
+   */
+  const target =
+    process.env.CMP_API_TARGET || env.CMP_API_TARGET || 'http://192.168.77.15:82'
+  const apiId = process.env.CMP_API_ID || env.CMP_API_ID || ''
+  const apiKey = process.env.CMP_API_KEY || env.CMP_API_KEY || ''
 
   // 只在跑 dev server 时提示；build 不打代理，缺密钥是正常的，不必刷屏
   if (command === 'serve' && (!apiId || !apiKey)) {

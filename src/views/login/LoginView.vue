@@ -533,4 +533,55 @@ const nearBuildings: Building[] = Array.from({ length: 14 }, () => ({
   font-size: 11px;
   color: #d8dde6;
 }
+
+/* ---------------- 窄屏 / 手机 ----------------
+ * 桌面版卡片是「绝对居中」（left:50% + translate），一旦视口比卡片窄就会偏出屏幕。
+ * 小屏下改成 flex 居中、宽度跟随视口，背景装饰全部收掉（它们只会挤到卡片后面）。
+ */
+@media (max-width: 640px) {
+  .login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+
+  .login-card {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    max-width: 360px;
+    padding: 22px 16px 16px;
+    transform: none;
+  }
+
+  /* 装饰元素在手机上只会遮挡表单，直接不显示 */
+  .platform,
+  .tower,
+  .cloud {
+    display: none;
+  }
+
+  .login-title {
+    margin-bottom: 14px;
+    font-size: 16px;
+  }
+
+  .demo-tip {
+    margin-top: 12px;
+    padding: 8px 10px;
+  }
+
+  .demo-tip__accounts {
+    font-size: 12px;
+  }
+
+  .demo-tip__note {
+    line-height: 1.5;
+  }
+}
 </style>

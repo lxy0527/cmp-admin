@@ -80,6 +80,27 @@ export function authHeader(token: string): Record<string, string> {
 }
 
 /**
+ * **不需要登录 token 的接口**（后端 2026-11 文档第一条的例外清单）：
+ *   登录 / 注册 / 发邮件 / 验证账号是否存在 / 验证邮箱是否存在 / 验证是否为系统保留账号
+ *
+ * 为什么要在前端也拦一道：这些接口后端本来就不校验 token，但如果浏览器里
+ * 还留着上一个账号的旧 token，拦截器会一股脑塞进去 —— 后端一旦对这几个
+ * 接口改成"带了 token 就校验"，界面上就会变成一个莫名其妙的白屏 / 401。
+ * 干净的请求就是不带凭据的请求。
+ *
+ * ⚠️ 不包含 `/changePassword`：它要的是**发邮件拿到的一次性 token**（默认
+ *    走调用方显式传的 authHeader），不是登录 token，语义完全不同。
+ */
+const NO_AUTH_URLS = new Set([
+  '/userLogin',
+  '/userRegister',
+  '/email',
+  '/verifyUserName',
+  '/verifyEmail',
+  '/userUnRegister'
+])
+
+/**
  * 请求拦截：自动带上**登录 token**（有就带，没有就不带）
  *
  * ⚠️ 关键：**调用方显式指定了鉴权头，就不覆盖。**
@@ -92,6 +113,10 @@ service.interceptors.request.use((config) => {
 
   // 调用方已指定（例如注册时带一次性 token）→ 尊重它
   if (headers[AUTH_TOKEN_HEADER]) return config
+
+  // 白名单接口：一个字节的凭据都不要带
+  const path = (config.url || '').split('?')[0].replace(/^\/api(?=\/)/, '')
+  if (NO_AUTH_URLS.has(path)) return config
 
   const userToken = storage.get<string>(USER_TOKEN_KEY)
   if (userToken) Object.assign(headers, authHeader(userToken))

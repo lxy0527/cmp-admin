@@ -24,7 +24,7 @@
       </div>
 
       <el-table v-loading="table.loading.value" :data="table.list.value" stripe height="100%">
-        <el-table-column prop="Id" label="ID" width="80" align="center" />
+        <el-table-column prop="Id" label="ID" :width="isMobile ? 64 : 80" align="center" />
         <el-table-column prop="Name" :label="t('photoWall.name')" min-width="220" />
         <el-table-column prop="FolderName" label="FolderName" min-width="320">
           <template #default="{ row }">
@@ -36,7 +36,12 @@
           <template #default="{ row }">{{ formatServerDateTime(row.CreateTime) }}</template>
         </el-table-column>
 
-        <el-table-column :label="t('common.operation')" width="160" align="center" fixed="right">
+        <el-table-column
+          :label="t('common.operation')"
+          :width="isMobile ? 116 : 160"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button v-permission="P.photoWall" link type="primary" size="small" @click="openDialog(row as PhotoArchiveRow)">
               {{ t('common.edit') }}
@@ -51,6 +56,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total: table.total.value }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="table.pageNum.value"
           v-model:page-size="table.pageSize.value"
           :page-sizes="[10, 20, 50, 100]"
@@ -78,6 +84,10 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 /**
  * 照片牆檔案管理（= 相册 / 分类，**不是报警**）
  * ============================================================

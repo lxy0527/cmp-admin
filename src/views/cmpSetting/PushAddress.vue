@@ -139,6 +139,48 @@ function openInNewTab() {
   height: 100%;
 }
 
+/* 窄屏：左右两栏改上下堆叠。
+   原来左栏写死 380px，440 宽的屏上右栏只剩约 48px，
+   里面那行「文檔由文檔站提供並內嵌顯示…」就被挤成竖排的一列字。
+   这里的选择器都写到三层：组件自己的 scoped 规则是 .xxx[data-v-*]（两个 class 级），
+   媒体查询里写两层会被它压回去（就像刚才 min-height 没生效那样）。 */
+@media (max-width: 900px) {
+  .push-address {
+    height: auto;
+  }
+
+  .pa-grid {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .card-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .doc-actions {
+    flex-wrap: wrap;
+  }
+
+  /* 卡片高度不再由栅格均分，跟着内容走，交给最外层滚动 */
+  .push-address .pa-grid .doc-card {
+    overflow: visible;
+  }
+
+  .push-address .doc-frame-wrap {
+    flex: none;
+  }
+
+  /* 内嵌文档给足高度：手机上按屏高 70%（最低 420px），内部由文档站自己滚 */
+  .push-address .doc-frame-wrap .doc-frame,
+  .push-address .doc-frame-wrap .doc-fallback {
+    flex: none;
+    height: 70vh;
+    min-height: 420px;
+  }
+}
+
 .list-card,
 .doc-card {
   display: flex;

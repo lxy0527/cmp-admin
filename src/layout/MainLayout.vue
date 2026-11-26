@@ -7,6 +7,15 @@
     <header class="topbar">
       <!-- 左：logo + 项目信息 -->
       <div class="topbar-left">
+        <!-- 窄屏才有：把左侧菜单以抽屉形式调出来 -->
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-label="菜单"
+          @click="sidebarOpen = !sidebarOpen"
+        >
+          <el-icon><Menu /></el-icon>
+        </button>
         <AppLogo />
         <div class="project">
           <div class="project-name">
@@ -138,8 +147,15 @@
 
     <!-- ---------------- 主体 ---------------- -->
     <div class="body">
+      <!-- 窄屏抽屉的遮罩：点空白处收起菜单（桌面端由 CSS 隐藏，不参与交互） -->
+      <div v-if="sidebarOpen" class="sidebar-mask" @click="sidebarOpen = false" />
+
       <!-- 左侧菜单：完全由 MenuTree 递归渲染，布局不认识具体菜单 -->
-      <aside v-if="sidebarMenus.length" class="sidebar">
+      <aside
+        v-if="sidebarMenus.length"
+        class="sidebar"
+        :class="{ 'is-open': sidebarOpen }"
+      >
         <MenuTree
           :nodes="sidebarMenus"
           :active-key="route.path"
@@ -147,6 +163,37 @@
           @navigate="openNode"
           @toggle="toggleNode"
         />
+
+        <!-- 窄屏抽屉底部常驻：桌面顶栏那几块（项目/环境/时钟）在手机上被收起了，
+             抽屉下半截本来也空着，正好把展示性信息挪到这里，不额外占内容区高度。
+             桌面端由 CSS 隐藏，不影响原布局。 -->
+        <div class="sidebar-info">
+          <div class="si-head">
+            <el-icon class="dot-red"><WarningFilled /></el-icon>
+            <span>{{ t('topbar.environmentMonitoring') }}</span>
+          </div>
+          <div class="si-line">
+            <span>{{ t('topbar.gateway') }}：<em class="off">Offline</em></span>
+            <span class="sep">|</span>
+            <span>{{ t('topbar.windSpeed') }}：<em>-- m/s</em></span>
+          </div>
+          <div class="si-line">
+            <span>{{ t('topbar.productionDate') }}：<em>{{ dateText }}</em></span>
+          </div>
+          <div class="si-divider" />
+          <div class="si-line si-line--weather">
+            <span class="temp">29.3℃</span>
+            <span>{{ t('topbar.feelsLike') }} <em>67</em></span>
+            <span class="sep">|</span>
+            <span>{{ t('topbar.humidity') }} <em>72%</em></span>
+          </div>
+          <div class="si-divider" />
+          <div class="si-line si-line--strong">{{ dateText }}　{{ timeText }}</div>
+          <div class="si-line si-line--muted">{{ weekText }} · {{ t('topbar.lunar') }} {{ lunarText }}</div>
+          <div class="si-foot">
+            {{ t('topbar.projectType') }}：Production　{{ t('topbar.projectNo') }}：SSLS9
+          </div>
+        </div>
       </aside>
 
       <main class="content">
@@ -168,6 +215,7 @@ import {
   ArrowDown,
   Calendar,
   DataLine,
+  Menu,
   Odometer,
   OfficeBuilding,
   Setting,
@@ -190,6 +238,12 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const menuStore = useMenuStore()
+
+/**
+ * 窄屏（≤900px）下左侧菜单改为抽屉：默认收起，由顶栏的汉堡按钮唤出。
+ * 桌面端这个状态不生效——样式里 .sidebar 本来就是常驻的。
+ */
+const sidebarOpen = ref(false)
 
 /* ---------------- 多语言（繁 / 简 / 英） ---------------- */
 const { t, locale } = useI18n()
@@ -274,6 +328,11 @@ function syncExpanded() {
 // immediate：首屏（例如直接打开 /data-receiving/permitted-to-work）也要展开到位
 watch(() => [route.path, menuStore.modules] as const, syncExpanded, { immediate: true })
 
+/** 窄屏抽屉：跳转到新页面后自动收起，否则会一直挡住内容 */
+watch(() => route.path, () => {
+  sidebarOpen.value = false
+})
+
 /**
  * 点击菜单节点：统一入口
  * 支持三件事，且都在数据里声明（渲染层不用改）：
@@ -336,7 +395,34 @@ async function handleCommand(command: string) {
   display: flex;
   flex-direction: column;
   height: 100%;
+  /* 移动端地址栏展开/收起时不会露出底部背景；不支持的浏览器用上面的 100% */
+  height: 100dvh;
   background: $page-bg;
+}
+
+/* 汉堡按钮：桌面端不存在（由 media query 打开） */
+.menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: $text-main;
+  background: transparent;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  cursor: pointer;
+
+  &:active {
+    background: rgba(61, 139, 253, 0.08);
+  }
+}
+
+/* 抽屉遮罩：桌面端永不出现 */
+.sidebar-mask {
+  display: none;
 }
 
 /* ---------------- 顶栏 ---------------- */
@@ -597,6 +683,8 @@ async function handleCommand(command: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* 窄屏下 Tab 文字变长会把图标挤扁，这里钉死尺寸 */
+  flex: none;
   width: 18px;
   height: 18px;
   border-radius: 4px;
@@ -653,9 +741,236 @@ async function handleCommand(command: string) {
   padding: 8px 0;
 }
 
+/* 抽屉底部那块「项目 / 环境 / 时钟」信息，只有窄屏抽屉里才出现 */
+.sidebar-info {
+  display: none;
+}
+
 .content {
   flex: 1;
   min-width: 0;
   overflow: auto;
+  /* iOS 上让内容区滚动带惯性 */
+  -webkit-overflow-scrolling: touch;
+  /* 刘海屏横屏时内容不要钻进圆角 */
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+  /* iPhone 底部 Home 条会压住表格最后一行和分页，滚到底时留出这条安全区 */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ==================== 窄屏（平板竖屏 / 手机） ====================
+ * 这里不是把桌面版缩放，是换一套布局：
+ *   顶栏信息块整块收起 → 汉堡按钮调出抽屉菜单 → 大 Tab 横向滚动。
+ */
+@media (max-width: 900px) {
+  .menu-toggle {
+    display: inline-flex;
+  }
+
+  .topbar {
+    gap: 8px;
+    height: 44px;
+    padding: 0 10px;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .topbar-left {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 六块环境/天气/时钟/告警信息在手机上无处安放，整体收起；
+     它们本身是展示性信息，不影响任何操作 */
+  .topbar-center {
+    display: none;
+  }
+
+  .project-meta {
+    display: none;
+  }
+
+  .sys-icon,
+  .user-name {
+    display: none;
+  }
+
+  .locale-switch {
+    padding: 2px 6px;
+  }
+
+  /* 大 Tab：横向滚动，不换行、不压缩 */
+  .tabbar {
+    justify-content: flex-start;
+    gap: 6px;
+    height: 38px;
+    padding: 0 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .big-tab {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* Dashboard 原本绝对定位在右上角，手机上改为跟随 Tab 排布 */
+  .big-tab--dashboard {
+    position: static;
+    margin-left: auto;
+  }
+
+  /* 左侧菜单 → 抽屉。
+     顶栏显式给个小 z-index，抽屉/遮罩才能稳定压在它上面
+     （之前顶栏是 static + auto，在部分安卓 WebView 里抽屉顶部会被顶栏盖住） */
+  .topbar {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sidebar-mask {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 999;
+    width: 240px;
+    max-width: 78vw;
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: none;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    /* 竖着分成两段：菜单自己滚，底部信息常驻 */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    &.is-open {
+      transform: none;
+      box-shadow: 2px 0 16px rgba(0, 0, 0, 0.14);
+    }
+  }
+
+  .sidebar .menu-tree {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* 顶栏在手机上收起的展示性信息，挪到抽屉下半截常驻 */
+  .sidebar-info {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid $border-color;
+    font-size: 12px;
+    line-height: 1.6;
+    color: $text-secondary;
+
+    em {
+      font-style: normal;
+      font-weight: 600;
+      color: $primary;
+    }
+
+    .off {
+      color: $danger;
+    }
+
+    .sep {
+      margin: 0 4px;
+      color: #dcdfe6;
+    }
+
+    .temp {
+      font-size: 14px;
+      font-weight: 700;
+      color: $text-main;
+    }
+  }
+
+  .si-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+    color: $text-main;
+  }
+
+  .si-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .si-line--strong {
+    font-weight: 600;
+    color: $text-main;
+  }
+
+  .si-line--muted {
+    color: #9aa3b2;
+  }
+
+  .si-divider {
+    height: 1px;
+    margin: 3px 0;
+    background: $border-color;
+  }
+
+  .si-foot {
+    margin-top: 2px;
+    color: #9aa3b2;
+  }
+}
+
+/* ==================== 手机竖屏 ==================== */
+@media (max-width: 600px) {
+  .topbar {
+    height: 42px;
+  }
+
+  .content {
+    /* 小屏上留白比桌面紧一档，否则一屏放不下任何内容 */
+    :deep(.page) {
+      padding: 8px;
+    }
+
+    :deep(.page-card) {
+      padding: 12px;
+      border-radius: $radius-base;
+    }
+  }
+}
+
+/* 触摸设备：去掉 hover 残留的高亮，避免点完还亮着 */
+@media (hover: none) {
+  .big-tab:hover {
+    color: inherit;
+    background: transparent;
+
+    &.active {
+      color: $primary;
+      background: rgba(61, 139, 253, 0.1);
+    }
+  }
 }
 </style>

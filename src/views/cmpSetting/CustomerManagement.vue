@@ -71,7 +71,12 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.operation')" width="220" align="center" fixed="right">
+        <el-table-column
+          :label="t('common.operation')"
+          :width="isMobile ? 150 : 220"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openRelated(row as CustomerRow)">
               {{ t('customer.relatedAccounts') }}
@@ -101,6 +106,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total: table.total.value }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="table.pageNum.value"
           v-model:page-size="table.pageSize.value"
           :page-sizes="[10, 20, 50]"
@@ -149,7 +155,8 @@
     </el-dialog>
 
     <!-- ==================== 二级：关联账号抽屉 ==================== -->
-    <el-drawer v-model="relatedVisible" size="66%" :with-header="false">
+    <!-- 手机上 66% 只剩两百多像素，里面还是多列表格；窄屏直接整屏 -->
+    <el-drawer v-model="relatedVisible" :size="isMobile ? '100%' : '66%'" :with-header="false">
       <div class="related-panel">
         <div class="related-head">
           <div class="related-title">
@@ -308,6 +315,10 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 /**
  * 客户管理
  * ============================================================

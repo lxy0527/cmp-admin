@@ -9,3 +9,10 @@ dist-ssr
 src/types/auto-imports.d.ts
 src/types/components.d.ts
 *.log
+
+# 临时解压/抓取产物（文档、截图、探测 cookie 等），一律不留在仓库里
+/.tmp_*/
+/.scratch/
+
+# 过程文档不进仓库（需求确认、联调记录、待办清单等）
+/docs/

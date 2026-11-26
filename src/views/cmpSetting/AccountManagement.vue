@@ -23,7 +23,7 @@
       </div>
 
       <el-table v-loading="table.loading.value" :data="table.list.value" stripe height="100%">
-        <el-table-column prop="Id" label="ID" width="80" align="center" />
+        <el-table-column prop="Id" label="ID" :width="isMobile ? 64 : 80" align="center" />
         <el-table-column prop="UserName" :label="t('account.account')" min-width="140" />
         <el-table-column prop="Name" :label="t('account.name')" min-width="120">
           <template #default="{ row }">{{ row.Name || '--' }}</template>
@@ -52,7 +52,12 @@
           </template>
         </el-table-column>
 
-        <el-table-column :label="t('common.operation')" width="180" align="center" fixed="right">
+        <el-table-column
+          :label="t('common.operation')"
+          :width="isMobile ? 120 : 180"
+          align="center"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button v-permission="P.userEdit" link type="primary" size="small" @click="openEdit(row as AccountRow)">
               {{ t('common.edit') }}
@@ -73,6 +78,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total: table.total.value }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="table.pageNum.value"
           v-model:page-size="table.pageSize.value"
           :page-sizes="[10, 20, 50, 100]"
@@ -151,6 +157,10 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 /**
  * 帳號管理
  * ============================================================

@@ -122,6 +122,7 @@
       <div class="table-foot">
         <span class="total-text">{{ t('common.total', { total }) }}</span>
         <el-pagination
+          :pager-count="isMobile ? 5 : 7"
           v-model:current-page="query.pageNum"
           v-model:page-size="query.pageSize"
           :page-sizes="[10, 20, 50, 100]"
@@ -137,12 +138,16 @@
 </template>
 
 <script setup lang="ts">
+import { useIsMobile } from '@/composables/useIsMobile'
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { Refresh, Search } from '@element-plus/icons-vue'
 import { getPermitWorkOptions, getPermitWorkPageApi } from '@/api/permitWork'
 import type { PermitWorkQuery, PermitWorkRow } from '@/mock'
+
+/** 窄屏下页码只显示 5 个（含首尾页），桌面保留 7 个 */
+const isMobile = useIsMobile()
 
 defineOptions({ name: 'PermittedToWork' })
 
@@ -342,5 +347,78 @@ onMounted(fetchData)
 .total-text {
   font-size: 12px;
   color: $text-secondary;
+}
+
+/* ---------------- 窄屏 / 手机 ----------------
+ * 与 AlarmList 保持一致：筛选每项独占一行（标签在上、控件满宽）、
+ * 标题与说明改纵向、分页条可换行。
+ */
+@media (max-width: 900px) {
+  .permitted-work {
+    height: auto;
+  }
+
+  .filter-bar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .filter-item {
+    flex: 1 1 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  /* 标签在手机上不需要定宽对齐了 */
+  .filter-label {
+    min-width: 0;
+  }
+
+  .filter-control,
+  .filter-control--date {
+    width: 100%;
+  }
+
+  .filter-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .table-card {
+    flex: none;
+    padding: 10px 12px;
+  }
+
+  /* 标题 + 那句「此模块后端尚未提供接口」改为纵向，标题不再折成两行 */
+  .table-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .card-title {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .head-hint {
+    line-height: 1.5;
+  }
+
+  .permit-table {
+    flex: none;
+    min-height: 320px;
+  }
+
+  .table-foot {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .total-text {
+    white-space: nowrap;
+  }
 }
 </style>

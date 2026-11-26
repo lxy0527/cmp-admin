@@ -1,6 +1,8 @@
 <template>
-  <div class="donut" :style="{ width: `${size}px`, height: `${size}px` }">
-    <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`">
+  <!-- 尺寸交给 CSS 管：宽度取 size，但受 max-width 限制；高度靠 aspect-ratio 跟随，
+       这样窄屏下面包屑/卡片一压，环就自己缩，不会撑破父容器 -->
+  <div class="donut" :style="{ width: `${size}px` }">
+    <svg :viewBox="`0 0 ${size} ${size}`">
       <!-- 底环：始终绘制，value=0 时就是设计图里那个灰色空环 -->
       <circle
         :cx="center"
@@ -78,6 +80,15 @@ const dash = computed(() => (circumference.value * props.value) / 100)
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* 宽度来自组件 prop，但绝不超出父容器；高度由 aspect-ratio 自动算 */
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
+.donut svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .donut-inner {
